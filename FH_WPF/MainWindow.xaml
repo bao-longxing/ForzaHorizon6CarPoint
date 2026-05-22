@@ -1,0 +1,334 @@
+﻿<Window x:Class="FH_WPF.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:FH_WPF"
+        mc:Ignorable="d"
+        Title="Horizon 6 脚本工具"
+        MouseLeftButtonDown="Window_MouseLeftButtonDown"
+        Width="1365"
+        Height="768"
+        FontFamily="Segoe UI"
+        WindowStartupLocation="CenterScreen"
+        AllowsTransparency="True"
+        Background="Transparent" WindowStyle="None">
+    <Window.Resources>
+        <SolidColorBrush x:Key="PanelBrush" Color="#101A2D"/>
+        <SolidColorBrush x:Key="CardBrush" Color="#0E1727"/>
+        <SolidColorBrush x:Key="BorderBrushDark" Color="#26334A"/>
+        <SolidColorBrush x:Key="TextBrush" Color="#E4ECFF"/>
+        <SolidColorBrush x:Key="SubTextBrush" Color="#8D9AB4"/>
+
+        <Style x:Key="CardBorderStyle" TargetType="Border">
+            <Setter Property="Background" Value="{StaticResource CardBrush}"/>
+            <Setter Property="BorderBrush" Value="{StaticResource BorderBrushDark}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="8"/>
+            <Setter Property="Padding" Value="12"/>
+            <Setter Property="Margin" Value="0,0,0,10"/>
+        </Style>
+
+        <Style x:Key="SidebarButtonStyle" TargetType="Button">
+            <Setter Property="Foreground" Value="{StaticResource TextBrush}"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderBrush" Value="Transparent"/>
+            <Setter Property="HorizontalContentAlignment" Value="Left"/>
+            <Setter Property="Padding" Value="12,8"/>
+            <Setter Property="Margin" Value="8,2"/>
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="root" Background="{TemplateBinding Background}" CornerRadius="6">
+                            <ContentPresenter VerticalAlignment="Center" HorizontalAlignment="Left" Margin="6,0"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="root" Property="Background" Value="#1A2840"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="ActionButtonStyle" TargetType="Button">
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="Background" Value="#5B3BE5"/>
+            <Setter Property="BorderBrush" Value="#6E51F0"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="16,8"/>
+            <Setter Property="Margin" Value="0,0,8,0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="6">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="SecondaryButtonStyle" TargetType="Button" BasedOn="{StaticResource ActionButtonStyle}">
+            <Setter Property="Background" Value="#1B273B"/>
+            <Setter Property="BorderBrush" Value="#32445F"/>
+            <Setter Property="Foreground" Value="#CAD6F6"/>
+        </Style>
+
+        <Style x:Key="DangerButtonStyle" TargetType="Button" BasedOn="{StaticResource ActionButtonStyle}">
+            <Setter Property="Background" Value="#7F1F2F"/>
+            <Setter Property="BorderBrush" Value="#A9364D"/>
+        </Style>
+
+        <Style x:Key="GhostButtonStyle" TargetType="Button" BasedOn="{StaticResource ActionButtonStyle}">
+            <Setter Property="Background" Value="#121D30"/>
+            <Setter Property="BorderBrush" Value="#2A3B56"/>
+            <Setter Property="Foreground" Value="#9FB2D6"/>
+            <Setter Property="Padding" Value="10,6"/>
+        </Style>
+    </Window.Resources>
+
+    <Grid>
+        <Grid.Background>
+            <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                <GradientStop Color="#050A14" Offset="0"/>
+                <GradientStop Color="#09152A" Offset="0.5"/>
+                <GradientStop Color="#040812" Offset="1"/>
+            </LinearGradientBrush>
+        </Grid.Background>
+
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="0"/>
+            <ColumnDefinition/>
+        </Grid.ColumnDefinitions>
+
+        <Grid Grid.Column="1" Margin="12,52,12,12">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+
+            <Grid Grid.Row="1" Margin="0,0,0,10">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="2*"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+
+                <Border Grid.Column="0" Style="{StaticResource CardBorderStyle}" Margin="0,0,554,10">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="90"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+
+                        <TextBlock Text="🚗 车辆信息" Grid.ColumnSpan="2" Foreground="{StaticResource TextBrush}" FontWeight="SemiBold" Margin="0,0,0,10"/>
+                        <TextBlock Text="车辆厂商" Grid.Row="1" Foreground="{StaticResource SubTextBrush}" VerticalAlignment="Center"/>
+                        <TextBox x:Name="txtCarFactory" Grid.Row="1" Grid.Column="1" Height="34" Background="#0A1322" Foreground="#DDE8FF" BorderBrush="#2A3A56" Text="斯巴鲁" UseLayoutRounding="False" VerticalContentAlignment="Center"/>
+                        <TextBlock Text="车辆名称" Grid.Row="2" Foreground="{StaticResource SubTextBrush}" VerticalAlignment="Center" Margin="0,10,0,0"/>
+                        <TextBox x:Name="txtCarType" Grid.Row="2" Grid.Column="1" Height="34" Background="#0A1322" Foreground="#DDE8FF" BorderBrush="#2A3A56" Text="22B" VerticalContentAlignment="Center"/>
+                        <!-- 修改后的按钮区域：横跨两列，这样左边就有足够的空间了 -->
+                        <StackPanel Grid.Row="3" 
+                        Grid.Column="0" 
+                        Grid.ColumnSpan="2" 
+                        Orientation="Horizontal" 
+                        HorizontalAlignment="Right" 
+                        Margin="0,12,0,0">
+
+                            <!-- 1. 新增的绿色按钮 -->
+                            <Button x:Name="btnBuyFromCollection" 
+                            Content="🟢 从收集册购买" 
+                            Style="{StaticResource GhostButtonStyle}"
+                            Background="#2E7D32" 
+                            Foreground="White" 
+                            Width="140" 
+                            Margin="0,0,10,0" />
+
+                                            <!-- 2. 原有的移除按钮 -->
+                                            <Button x:Name="btnDelectCar" 
+                            Content="🗑 从车库中移除" 
+                            Style="{StaticResource DangerButtonStyle}" 
+                            Width="140" 
+                            Click="btnDelectCar_Click"/>
+                        </StackPanel>
+                    </Grid>
+                </Border>
+
+                <Border Style="{StaticResource CardBorderStyle}" Margin="345,0,102,10">
+                    <StackPanel>
+                        <TextBlock Text="📶 当前状态" Foreground="{StaticResource TextBrush}" FontWeight="SemiBold" Margin="0,0,0,10"/>
+                        <TextBlock Text="脚本状态： ● 未运行" Foreground="{StaticResource SubTextBrush}" Margin="0,2"/>
+                        <TextBlock x:Name="txtOBSState" Text="OBS连接： ● 已连接" Foreground="#6AD37A" Margin="0,2"/>
+                        <TextBlock Text="账号状态： ● 已登录" Foreground="#6AD37A" Margin="0,2"/>
+                        <TextBlock Text="车辆热练度总数： --" Foreground="{StaticResource SubTextBrush}" Margin="0,2"/>
+                    </StackPanel>
+                </Border>
+                <Border Grid.Column="0" Style="{StaticResource CardBorderStyle}" Margin="797,0,10,10" Grid.ColumnSpan="2">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="90"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+
+                        <TextBlock Text="📄 全局日志" Grid.ColumnSpan="2" Foreground="{StaticResource TextBrush}" FontWeight="SemiBold" Margin="0,0,0,10"/>
+                        <TextBox x:Name="txtLog" Grid.Row="1" Background="#0A1322" Foreground="#DDE8FF" BorderBrush="#2A3A56" Text="[21:43:11] [信息] 脚本已启动" Grid.ColumnSpan="2" Margin="10,0,10,-98" Grid.RowSpan="3" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" Height="98"/>
+                    </Grid>
+                </Border>
+            </Grid>
+
+            <Grid Grid.Row="2" Margin="0,0,0,10">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+
+                <Border Grid.Column="0" Style="{StaticResource CardBorderStyle}" Margin="0,0,10,0">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+
+                        <TextBlock Text="🧬 蓝图脚本" Foreground="{StaticResource TextBrush}" FontWeight="SemiBold" Margin="0,0,0,10"/>
+                        <DockPanel Grid.Row="1" Margin="0,0,0,10">
+                            <StackPanel Orientation="Horizontal" DockPanel.Dock="Left">
+                                <Button Content="▶ 开始" Style="{StaticResource ActionButtonStyle}" Width="50" Height="25"/>
+                                <Button Content="⏸ 停止" Style="{StaticResource SecondaryButtonStyle}" Width="50" Height="25"/>
+                                <Button Content="↻ 重置" Style="{StaticResource SecondaryButtonStyle}" Width="50" Height="25"/>
+                            </StackPanel>
+                        </DockPanel>
+
+                        <Border Grid.Row="2" Background="#08101D" BorderBrush="#22344F" BorderThickness="1" CornerRadius="6" Padding="10">
+                            <Grid>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="*"/>
+                                </Grid.RowDefinitions>
+                                <DockPanel>
+                                    <TextBlock Text="步骤日志" Foreground="#B8C7E6" Margin="0,0,0,8"/>
+                                    <Button Content="🗑 清空日志" Style="{StaticResource GhostButtonStyle}" DockPanel.Dock="Right" Margin="0,0,0,8"/>
+                                </DockPanel>
+                                <TextBox x:Name="txtScriptLog" Grid.Row="1"
+                                         AcceptsReturn="True"
+                                         TextWrapping="Wrap"
+                                         VerticalScrollBarVisibility="Auto"
+                                         Background="Transparent"
+                                         BorderThickness="0"
+                                         Foreground="#91A7D1"/>
+                            </Grid>
+                        </Border>
+
+                        <StackPanel Grid.Row="3" Margin="0,10,0,0">
+                            <TextBlock Text="整体进度" Foreground="{StaticResource SubTextBrush}"/>
+                            <ProgressBar Value="100" Height="10" Margin="0,4,0,0" Background="#162238" Foreground="#9B4DFF"/>
+                            <DockPanel Margin="0,6,0,0">
+                                <TextBlock Text="已用时：00:00:15" Foreground="{StaticResource SubTextBrush}"/>
+                                <TextBlock Text="预计剩余：00:00:00" Foreground="{StaticResource SubTextBrush}" DockPanel.Dock="Right"/>
+                            </DockPanel>
+                        </StackPanel>
+                    </Grid>
+                </Border>
+
+                <Border Style="{StaticResource CardBorderStyle}" Grid.ColumnSpan="2" Margin="670,0,0,0">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+
+                        <TextBlock Text="✨ 消耗所有车辆热练度" Foreground="{StaticResource TextBrush}" FontWeight="SemiBold" Margin="0,0,0,10"/>
+                        <DockPanel Grid.Row="1" Margin="0,0,0,10">
+                            <StackPanel Orientation="Horizontal" DockPanel.Dock="Left">
+                                <Button x:Name="btnPoint" Content="▶ 开始消耗" Style="{StaticResource ActionButtonStyle}" Background="#DE7F23" BorderBrush="#F39A45" Width="80" Height="25" Click="btnPoint_Click"/>
+                                <Button Content="⏸ 停止" Style="{StaticResource SecondaryButtonStyle}" Width="50" Height="25"/>
+                                <Button Content="↻ 重置" Style="{StaticResource SecondaryButtonStyle}" Width="50" Height="25"/>
+                            </StackPanel>
+                            <StackPanel Orientation="Horizontal" DockPanel.Dock="Right" HorizontalAlignment="Right">
+                                <TextBlock Text="预估时间：--:--" Foreground="{StaticResource SubTextBrush}" VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </DockPanel>
+
+                        <Border Grid.Row="2" Background="#08101D" BorderBrush="#22344F" BorderThickness="1" CornerRadius="6" Padding="10">
+                            <Grid>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="*"/>
+                                </Grid.RowDefinitions>
+                                <DockPanel>
+                                    <TextBlock Text="步骤日志" Foreground="#B8C7E6" Margin="0,0,0,8"/>
+                                    <Button Content="🗑 清空日志" Style="{StaticResource GhostButtonStyle}" DockPanel.Dock="Right" Margin="0,0,0,8"/>
+                                </DockPanel>
+
+                                <!-- 2. 在这里添加 TextBox，并绑定到第 1 行 -->
+                                <TextBox x:Name="txtPointLog" Grid.Row="1" 
+                 AcceptsReturn="True" 
+                 TextWrapping="Wrap" 
+                 VerticalScrollBarVisibility="Auto"
+                 Background="Transparent" 
+                 BorderThickness="0"
+                 Foreground="#FFFFFF" Height="164"/>
+                                
+                            </Grid>
+                        </Border>
+
+                        <StackPanel Grid.Row="3" Margin="0,10,0,0">
+                            <TextBlock Text="消耗进度" Foreground="{StaticResource SubTextBrush}"/>
+                            <ProgressBar Value="100" Height="10" Margin="0,4,0,0" Background="#162238" Foreground="#F08E2F"/>
+                            <DockPanel Margin="0,6,0,0">
+                                <TextBlock Text="已用时：00:00:12" Foreground="{StaticResource SubTextBrush}"/>
+                                <TextBlock Text="剩余点数：0" Foreground="{StaticResource SubTextBrush}" DockPanel.Dock="Right"/>
+                            </DockPanel>
+                        </StackPanel>
+                    </Grid>
+                </Border>
+            </Grid>
+
+            <Border Grid.Row="3" Style="{StaticResource CardBorderStyle}">
+                <StackPanel>
+                    <TextBlock Text="⚡ 快捷功能" Foreground="{StaticResource TextBrush}" FontWeight="SemiBold" Margin="0,0,0,10"/>
+                    <WrapPanel>
+                        <Button Content="OBS" Click="Button_Click" Style="{StaticResource SecondaryButtonStyle}" Width="120"/>
+                        <Button Content="KeyBoard" Click="Button_Click_1" Style="{StaticResource SecondaryButtonStyle}" Width="120"/>
+                        <Button x:Name="btnOCRTest" Content="OCR" Click="btnOCRTest_Click" Style="{StaticResource SecondaryButtonStyle}" Width="120"/>
+                        <Button x:Name="btnTestGameControl" Content="脚本测试" Style="{StaticResource SecondaryButtonStyle}" Width="140" Click="btnTestGameControl_Click"/>
+                        <Button x:Name="btnROI" Content="ROI" Style="{StaticResource SecondaryButtonStyle}" Width="120" Click="btnROI_Click"/>
+                        <Button x:Name="btnMousePos" Content="MousePos" Style="{StaticResource SecondaryButtonStyle}" Width="140" Click="btnMousePos_Click"/>
+                    </WrapPanel>
+                </StackPanel>
+            </Border>
+
+            <StatusBar Grid.Row="4" Background="#08111F" Foreground="#8FA1C7" BorderBrush="#1E2B43" BorderThickness="1" Padding="8,4">
+                <StatusBarItem x:Name="txtTime" Content="当前时间：2026-05-20 12:00:15"/>
+                <Separator/>
+                <StatusBarItem x:Name="txtRunTime" Content="运行时长：00:15:30"/>
+                <Separator/>
+                <StatusBarItem Content="作者：Horizon Script Team"/>
+            </StatusBar>
+            <Button x:Name="btnClose" Content="X" Style="{StaticResource SecondaryButtonStyle}" Margin="1311,-40,0,52" Click="btnClose_Click" Height="30"/>
+        </Grid>
+        <Image OpacityMask="White" Source="/Forza_Horizon_6_logo.png" Margin="19,11,1136,707" Grid.Column="1"/>
+        <TextBlock Text="脚本工具  v1.0.0" Foreground="#9AA7C2" Margin="23,63,1134,689" Grid.Column="1"/>
+    </Grid>
+</Window>
