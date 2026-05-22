@@ -1,6 +1,4 @@
-﻿using System;
-using System.Threading;
-using System.Windows;
+﻿using System.Windows;
 using System.Windows.Input;
 using System.Windows.Threading;
 
@@ -17,6 +15,24 @@ namespace FH_WPF
             _timer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
             _timer.Tick += Timer_Tick;
             _timer.Start();
+
+            //初始化日志
+            ClsLogger.Init(txtLog, txtScriptLog, txtPointLog);
+
+            //初始化OBS
+            if (!ClsObs.IsConnected)
+            {
+                ClsObs.ConnectAsync("192.168.31.110", 4455, "").GetAwaiter().GetResult();
+                AppendLog("[信息] OBS 已初始化");
+            }
+
+            //初始化OCR
+            ClsOCR.Initialize();
+            AppendLog("[信息] OCR 已初始化");
+
+            //初始化ROI
+            ClsROI.LoadTargetRectsFromJson("targetRects.json");
+
         }
 
         private void Timer_Tick(object? sender, EventArgs e)
@@ -87,6 +103,7 @@ namespace FH_WPF
         private void btnPoint_Click(object sender, RoutedEventArgs e)
         {
             AppendPointLog($"[{DateTime.Now:HH:mm:ss}] 开始消耗点数...");
+            ClsGameControl.UpCarPoint(txtCarFactory.Text, txtCarType.Text, false);
         }
 
         private void Button_Click(object sender, RoutedEventArgs e)
@@ -107,29 +124,20 @@ namespace FH_WPF
         private void btnTestGameControl_Click(object sender, RoutedEventArgs e)
         {
             AppendLog("[信息] 脚本测试 按钮点击");
-            Thread.Sleep(3000);
             try
             {
-                if (!ClsLogicContorl_Ghub.IsInitialized)
-                {
-                    AppendLog("[警告] GHUB 设备未初始化，尝试打开...");
-                    if (!ClsLogicContorl_Ghub.DeviceOpen())
-                    {
-                        AppendLog("[错误] 打开 GHUB 设备失败: " + ClsLogicContorl_Ghub.LastError);
-                        return;
-                    }
-                    AppendLog("[信息] GHUB 设备初始化成功");
-                }
+                Thread.Sleep(3000);
+                ClsLogicContorl_Ghub.Move(-4096, -4096, false);
+                ClsLogicContorl_Ghub.Move(1490, 371, true);
+                ClsLogicContorl_Ghub.ClickMouse(1);
 
-                ClsLogicContorl_Ghub.Move(-4000, -4000);
-                ClsLogicContorl_Ghub.MouseDown(3);
-                ClsLogicContorl_Ghub.MouseUp(3);
+
+                //ClsGameControl.UpCarPoint(txtCarFactory.Text, txtCarType.Text, true);
             }
             catch (Exception ex)
             {
                 AppendLog("[错误] 调用 GHUB 接口失败: " + ex.Message);
             }
-            ClsLogicContorl_Ghub.ClickMouse(3);
         }
 
         private void btnROI_Click(object sender, RoutedEventArgs e)
@@ -141,8 +149,14 @@ namespace FH_WPF
         {
             try
             {
-                var pos = Mouse.GetPosition(this);
-                AppendLog($"[信息] 鼠标位置: ({pos.X:0.##}, {pos.Y:0.##})");
+                if (ClsMousePos.IsRunning)
+                {
+                    ClsMousePos.Stop();
+                }
+                else
+                {
+                    ClsMousePos.Start();
+                }
             }
             catch (Exception ex)
             {
@@ -166,6 +180,12 @@ namespace FH_WPF
                         txtLog.Text = $"[{prefix}] {message}";
                     else
                         txtLog.Text += Environment.NewLine + $"[{prefix}] {message}";
+                    try
+                    {
+                        txtLog.CaretIndex = txtLog.Text.Length;
+                        txtLog.ScrollToEnd();
+                    }
+                    catch { }
                 }
             }
             catch { }
@@ -181,6 +201,33 @@ namespace FH_WPF
                         txtPointLog.Text = message;
                     else
                         txtPointLog.Text += Environment.NewLine + message;
+                    try
+                    {
+                        txtPointLog.CaretIndex = txtPointLog.Text.Length;
+                        txtPointLog.ScrollToEnd();
+                    }
+                    catch { }
+                }
+            }
+            catch { }
+        }
+
+        private void AppendScriptLog(string message)
+        {
+            try
+            {
+                if (txtScriptLog != null)
+                {
+                    if (string.IsNullOrEmpty(txtScriptLog.Text))
+                        txtScriptLog.Text = message;
+                    else
+                        txtScriptLog.Text += Environment.NewLine + message;
+                    try
+                    {
+                        txtScriptLog.CaretIndex = txtScriptLog.Text.Length;
+                        txtScriptLog.ScrollToEnd();
+                    }
+                    catch { }
                 }
             }
             catch { }

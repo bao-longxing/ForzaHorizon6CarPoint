@@ -205,10 +205,7 @@ namespace FH_WPF
                 }
 
                 ClsLogger.LogPoint("步骤1-3: 已点击前往制造商");
-                return;
             }
-
-            Thread.Sleep(800);
 
             // 4~6: 点击“斯巴鲁”，找不到则 PageUp 后重试一次
             ClsLogger.LogPoint($"步骤4-6: 开始查找并点击制造商 '{manufacturerName}'");
@@ -275,9 +272,6 @@ namespace FH_WPF
                 ClsLogger.LogPoint($"UpCarPoint: 未找到{manufacturerName}（已重试 PageUp 一次）。");
                 return;
             }
-
-            return;
-
 
             Thread.Sleep(800);
 
@@ -862,6 +856,7 @@ namespace FH_WPF
                 ClsLogicContorl_Ghub.Move(-4096, -4096);
                 ClsLogicContorl_Ghub.Move(clickX, clickY, true);
                 ClsLogicContorl_Ghub.ClickMouse(1);
+                Debug.WriteLine($"x = {clickX} y = {clickY}");
                 return true;
             }
             catch (Exception ex)

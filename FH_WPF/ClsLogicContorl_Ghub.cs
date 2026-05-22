@@ -1,13 +1,11 @@
-﻿using System;
-using System.Collections.Generic;
-using System.IO;
+﻿using System.IO;
 using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Windows.Input;
 
 namespace FH_WPF
 {
-    internal static class ClsLogicContorl_Ghub 
+    internal static class ClsLogicContorl_Ghub
     {
         // 最近一次错误信息（诊断用）
         private static string _lastError = string.Empty;
@@ -213,18 +211,7 @@ namespace FH_WPF
         public static void Move(int x, int y, bool absMove = false)
         {
             if (!IsInitialized) return;
-            if (absMove)
-            {
-                if (GetCursorPos(out POINT cur))
-                {
-                    moveR(x - cur.X, y - cur.Y, 0);
-                }
-                // GetCursorPos 失败时静默跳过，避免误操作
-            }
-            else
-            {
-                moveR(x, y, 0);
-            }
+            moveR(x, y, absMove ? 1 : 0);
         }
 
         /// <summary>将 WPF Key 枚举转换为 ghub 键名，找不到时返回 ""。</summary>
