@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.Windows;
 using System.Windows.Input;
 using System.Windows.Threading;
+using System.Windows.Media;
 
 namespace FH_WPF
 {
@@ -16,10 +17,48 @@ namespace FH_WPF
         private DateTime? _carPointStartTime;
         private bool _raceRunning = false;
         private bool _carPointRunning = false;
+        private DateTime? _lastPointUpdateTime;
+        private TimeSpan? _pointUpdateInterval;
+        private int _currentPoint = 0;
+        private const int MaxPoint = 999;
+        private const int PointModeSingleLoopPoint = 30;
         private ClsKeyboardHook? _keyboardHook;
         private bool UpCarIsAllComplete = false;
         // 自动化管理器开关
         private bool _autoManagerEnabled = false;
+        #endregion
+
+        #region OBS UI Updates
+        private void OnObsConnected()
+        {
+            // 确保在 UI 线程执行
+            Dispatcher.Invoke(() => UpdateObsStateUI(true));
+        }
+
+        private void OnObsDisconnected()
+        {
+            Dispatcher.Invoke(() => UpdateObsStateUI(false));
+        }
+
+        private void UpdateObsStateUI(bool connected)
+        {
+            try
+            {
+                if (txtOBSState == null) return;
+
+                if (connected)
+                {
+                    txtOBSState.Text = "OBS连接： ● 已连接";
+                    txtOBSState.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#6AD37A"));
+                }
+                else
+                {
+                    txtOBSState.Text = "OBS连接： ● 未连接";
+                    txtOBSState.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#E15C4B"));
+                }
+            }
+            catch { }
+        }
         #endregion
 
         #region Constructor & Initialization
@@ -47,6 +86,13 @@ namespace FH_WPF
 
             //初始化ROI
             ClsROI.LoadTargetRectsFromJson("targetRects.json");
+
+            // 订阅 OBS 连接/断开事件以更新 UI 状态
+            ClsObs.OnConnected += OnObsConnected;
+            ClsObs.OnDisconnected += OnObsDisconnected;
+
+            // 根据当前连接状态初始化显示
+            UpdateObsStateUI(ClsObs.IsConnected);
 
             //初始化KeyboardHook和F12取消机制
             try
@@ -108,9 +154,24 @@ namespace FH_WPF
 
         private void ClsGameControl_DetectPoint(object? sender, int e)
         {
-            txtPointTotal.Text = $"车辆热练度总数： {e.ToString()}";
-            PrgPointTo999.Value = ((double)e / 999) * 100;
-            PrgPointToZero.Value = (1 - ((double)e / 999)) * 100;
+            var now = DateTime.Now;
+            if (_lastPointUpdateTime.HasValue)
+            {
+                var interval = now - _lastPointUpdateTime.Value;
+                if (interval > TimeSpan.Zero)
+                {
+                    _pointUpdateInterval = interval;
+                }
+            }
+
+            _lastPointUpdateTime = now;
+            _currentPoint = Math.Max(0, Math.Min(MaxPoint, e));
+
+            txtPointTotal.Text = $"车辆热练度总数： {_currentPoint}";
+            PrgPointTo999.Value = ((double)_currentPoint / MaxPoint) * 100;
+            PrgPointToZero.Value = (1 - ((double)_currentPoint / MaxPoint)) * 100;
+
+            UpdateEstimatedTime();
         }
         #endregion
 
@@ -367,6 +428,7 @@ namespace FH_WPF
                 _raceRunning = true;
                 // 立即更新一次 UI
                 UpdateRaceTime();
+                UpdateEstimatedTime();
             }
             catch (Exception ex)
             {
@@ -384,6 +446,7 @@ namespace FH_WPF
             {
                 AppendPointLog("[完成] 点数已达到999！");
                 AppendScriptLog("[事件] 蓝图执行完成 - 点数已达到999");
+                _currentPoint = MaxPoint;
                 // 停止计时并在UI上显示最终时长
                 if (_raceRunning && _raceStartTime.HasValue)
                 {
@@ -396,6 +459,8 @@ namespace FH_WPF
                     _carPointRunning = false;
                     UpdateCarPointTime();
                 }
+
+                UpdateEstimatedTime();
             }
             catch (Exception ex)
             {
@@ -414,6 +479,7 @@ namespace FH_WPF
                 _carPointStartTime = DateTime.Now;
                 _carPointRunning = true;
                 UpdateCarPointTime();
+                UpdateEstimatedTime();
             }
             catch (Exception ex)
             {
@@ -513,6 +579,78 @@ namespace FH_WPF
                 txtCarPointTime.Text = $"已用时：{hours:00}:{elapsed.Minutes:00}:{elapsed.Seconds:00}";
             }
             catch { }
+        }
+
+        private void UpdateEstimatedTime()
+        {
+            try
+            {
+                if (txtRaceEstimatedTime == null || txtCarPointEstimatedTime == null)
+                {
+                    return;
+                }
+
+                if (_currentPoint >= MaxPoint)
+                {
+                    txtRaceEstimatedTime.Text = "预计用时：00:00:00";
+                    txtCarPointEstimatedTime.Text = "预计用时：00:00:00";
+                    return;
+                }
+
+                if (!_pointUpdateInterval.HasValue || _pointUpdateInterval.Value <= TimeSpan.Zero)
+                {
+                    txtRaceEstimatedTime.Text = "预计用时：--:--:--";
+                    txtCarPointEstimatedTime.Text = "预计用时：--:--:--";
+                    return;
+                }
+
+                var leftPoint = MaxPoint - _currentPoint;
+                var interval = _pointUpdateInterval.Value;
+
+                if (_raceRunning)
+                {
+                    var singlePoint = ParseSingleRacePoint();
+                    var raceEstimated = TimeSpan.FromTicks((long)((leftPoint / (double)singlePoint) * interval.Ticks));
+                    txtRaceEstimatedTime.Text = $"预计用时：{FormatTimeSpan(raceEstimated)}";
+                    txtCarPointEstimatedTime.Text = "预计用时：--:--:--";
+                    return;
+                }
+
+                if (_carPointRunning)
+                {
+                    var pointEstimated = TimeSpan.FromTicks((long)((leftPoint / (double)PointModeSingleLoopPoint) * interval.Ticks));
+                    txtCarPointEstimatedTime.Text = $"预计用时：{FormatTimeSpan(pointEstimated)}";
+                    txtRaceEstimatedTime.Text = "预计用时：--:--:--";
+                    return;
+                }
+
+                txtRaceEstimatedTime.Text = "预计用时：--:--:--";
+                txtCarPointEstimatedTime.Text = "预计用时：--:--:--";
+            }
+            catch
+            {
+            }
+        }
+
+        private int ParseSingleRacePoint()
+        {
+            if (!int.TryParse(txtSinglePoint?.Text, out var singlePoint) || singlePoint <= 0)
+            {
+                return 1;
+            }
+
+            return singlePoint;
+        }
+
+        private static string FormatTimeSpan(TimeSpan value)
+        {
+            if (value < TimeSpan.Zero)
+            {
+                value = TimeSpan.Zero;
+            }
+
+            var hours = (int)value.TotalHours;
+            return $"{hours:00}:{value.Minutes:00}:{value.Seconds:00}";
         }
         #endregion
 
@@ -660,6 +798,9 @@ namespace FH_WPF
                     _keyboardHook = null;
                 }
                 ClsGameControl.DisposeCancelToken();
+                // 取消订阅 OBS 事件
+                try { ClsObs.OnConnected -= OnObsConnected; } catch { }
+                try { ClsObs.OnDisconnected -= OnObsDisconnected; } catch { }
             }
             catch (Exception ex)
             {

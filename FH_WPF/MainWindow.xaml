@@ -276,6 +276,7 @@
                             <ProgressBar x:Name="PrgPointTo999" Value="100" Height="10" Margin="0,4,0,0" Background="#162238" Foreground="#9B4DFF"/>
                             <DockPanel Margin="0,6,0,0">
                                 <TextBlock x:Name="txtRaceTime" Text="已用时：00:00:00" Foreground="{StaticResource SubTextBrush}"/>
+                                <TextBlock x:Name="txtRaceEstimatedTime" Text="预计用时：00:00:00" Foreground="{StaticResource SubTextBrush}" HorizontalAlignment="Right"/>
                             </DockPanel>
                         </StackPanel>
                     </Grid>
@@ -328,6 +329,7 @@
                             <ProgressBar x:Name="PrgPointToZero" Value="100" Height="10" Margin="0,4,0,0" Background="#162238" Foreground="#F08E2F"/>
                             <DockPanel Margin="0,6,0,0">
                                 <TextBlock x:Name="txtCarPointTime" Text="已用时：00:00:00" Foreground="{StaticResource SubTextBrush}"/>
+                                <TextBlock x:Name="txtCarPointEstimatedTime" Text="预计用时：00:00:00" Foreground="{StaticResource SubTextBrush}" HorizontalAlignment="Right"/>
                             </DockPanel>
                         </StackPanel>
                     </Grid>
