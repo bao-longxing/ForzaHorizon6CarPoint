@@ -7,6 +7,7 @@
         mc:Ignorable="d"
         Title="Horizon 6 脚本工具"
         MouseLeftButtonDown="Window_MouseLeftButtonDown"
+        Closing="Window_Closing"
         Width="1365"
         Height="768"
         FontFamily="Segoe UI"
@@ -90,6 +91,28 @@
             <Setter Property="Foreground" Value="#9FB2D6"/>
             <Setter Property="Padding" Value="10,6"/>
         </Style>
+
+        <!-- 与 ActionButtonStyle 相同视觉风格但用于非 Button 控件（Label） -->
+        <Style x:Key="ActionLabelStyle" TargetType="Label">
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="Background" Value="#5B3BE5"/>
+            <Setter Property="BorderBrush" Value="#6E51F0"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="16,8"/>
+            <Setter Property="Margin" Value="0,0,8,0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="HorizontalContentAlignment" Value="Center"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Label">
+                        <Border Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="6">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
     </Window.Resources>
 
     <Grid>
@@ -121,7 +144,7 @@
                     <ColumnDefinition Width="*"/>
                 </Grid.ColumnDefinitions>
 
-                <Border Grid.Column="0" Style="{StaticResource CardBorderStyle}" Margin="0,0,554,10">
+                <Border Grid.Column="0" Style="{StaticResource CardBorderStyle}" Margin="0,0,478,10">
                     <Grid>
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="90"/>
@@ -132,50 +155,48 @@
                             <RowDefinition Height="Auto"/>
                             <RowDefinition Height="Auto"/>
                             <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
                         </Grid.RowDefinitions>
 
                         <TextBlock Text="🚗 车辆信息" Grid.ColumnSpan="2" Foreground="{StaticResource TextBrush}" FontWeight="SemiBold" Margin="0,0,0,10"/>
-                        <TextBlock Text="车辆厂商" Grid.Row="1" Foreground="{StaticResource SubTextBrush}" VerticalAlignment="Center"/>
-                        <TextBox x:Name="txtCarFactory" Grid.Row="1" Grid.Column="1" Height="34" Background="#0A1322" Foreground="#DDE8FF" BorderBrush="#2A3A56" Text="斯巴鲁" UseLayoutRounding="False" VerticalContentAlignment="Center"/>
-                        <TextBlock Text="车辆名称" Grid.Row="2" Foreground="{StaticResource SubTextBrush}" VerticalAlignment="Center" Margin="0,10,0,0"/>
-                        <TextBox x:Name="txtCarType" Grid.Row="2" Grid.Column="1" Height="34" Background="#0A1322" Foreground="#DDE8FF" BorderBrush="#2A3A56" Text="22B" VerticalContentAlignment="Center"/>
+                        <TextBlock Text="车辆性能分" Grid.Row="1" Foreground="{StaticResource SubTextBrush}" VerticalAlignment="Center"/>
+                        <TextBox x:Name="txtCarScore" Grid.Row="1" Grid.Column="1" Height="34" Background="#0A1322" Foreground="#DDE8FF" BorderBrush="#2A3A56" Text="600" VerticalContentAlignment="Center"/>
+                        <TextBlock Text="车辆厂商" Grid.Row="2" Foreground="{StaticResource SubTextBrush}" VerticalAlignment="Center"/>
+                        <TextBox x:Name="txtCarFactory" Grid.Row="2" Grid.Column="1" Height="34" Background="#0A1322" Foreground="#DDE8FF" BorderBrush="#2A3A56" Text="斯巴鲁" UseLayoutRounding="False" VerticalContentAlignment="Center"/>
+                        <TextBlock Text="车辆名称" Grid.Row="3" Foreground="{StaticResource SubTextBrush}" VerticalAlignment="Center" Margin="0,10,0,0"/>
+                        <TextBox x:Name="txtCarType" Grid.Row="3" Grid.Column="1" Height="34" Background="#0A1322" Foreground="#DDE8FF" BorderBrush="#2A3A56" Text="22B" VerticalContentAlignment="Center"/>
                         <!-- 修改后的按钮区域：横跨两列，这样左边就有足够的空间了 -->
-                        <StackPanel Grid.Row="3" 
+                        <StackPanel Grid.Row="4" 
                         Grid.Column="0" 
                         Grid.ColumnSpan="2" 
                         Orientation="Horizontal" 
                         HorizontalAlignment="Right" 
                         Margin="0,12,0,0">
 
-                            <!-- 1. 新增的绿色按钮 -->
-                            <Button x:Name="btnBuyFromCollection" 
-                            Content="🟢 从收集册购买" 
-                            Style="{StaticResource GhostButtonStyle}"
-                            Background="#2E7D32" 
-                            Foreground="White" 
-                            Width="140" 
-                            Margin="0,0,10,0" />
+                            <TextBlock Text="购买数量" Foreground="{StaticResource SubTextBrush}" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                            <TextBox x:Name="txtBuyCarNum" Width="44" Height="24" Background="#FF0A1322" BorderBrush="#FF2A3A56" Foreground="#FFDDE8FF" Text="33" VerticalContentAlignment="Center"/>
 
-                                            <!-- 2. 原有的移除按钮 -->
-                                            <Button x:Name="btnDelectCar" 
-                            Content="🗑 从车库中移除" 
-                            Style="{StaticResource DangerButtonStyle}" 
-                            Width="140" 
-                            Click="btnDelectCar_Click"/>
+                            <!-- 1. 改为 Label，显示快捷键提示 F7，颜色保持不变 -->
+                            <Label x:Name="lblBuyFromCollection" 
+                                   Content="🟢 从收集簿购买 (F7)" 
+                                   Style="{StaticResource ActionLabelStyle}"
+                                   Background="#2E7D32" 
+                                   Foreground="White" 
+                                   Width="125" 
+                                   Margin="0,0,10,0"/>
+
+                            <!-- 2. 改为 Label，显示快捷键提示 F6，颜色保持不变 -->
+                            <Label x:Name="lblDelectCar" 
+                                   Content="🗑 从车库中移除 (F6)" 
+                                   Style="{StaticResource ActionLabelStyle}"
+                                   Background="#7F1F2F"
+                                   BorderBrush="#A9364D"
+                                   Width="120" />
                         </StackPanel>
                     </Grid>
                 </Border>
 
-                <Border Style="{StaticResource CardBorderStyle}" Margin="345,0,102,10">
-                    <StackPanel>
-                        <TextBlock Text="📶 当前状态" Foreground="{StaticResource TextBrush}" FontWeight="SemiBold" Margin="0,0,0,10"/>
-                        <TextBlock Text="脚本状态： ● 未运行" Foreground="{StaticResource SubTextBrush}" Margin="0,2"/>
-                        <TextBlock x:Name="txtOBSState" Text="OBS连接： ● 已连接" Foreground="#6AD37A" Margin="0,2"/>
-                        <TextBlock Text="账号状态： ● 已登录" Foreground="#6AD37A" Margin="0,2"/>
-                        <TextBlock Text="车辆热练度总数： --" Foreground="{StaticResource SubTextBrush}" Margin="0,2"/>
-                    </StackPanel>
-                </Border>
-                <Border Grid.Column="0" Style="{StaticResource CardBorderStyle}" Margin="797,0,10,10" Grid.ColumnSpan="2">
+                <Border Grid.Column="0" Style="{StaticResource CardBorderStyle}" Margin="421,0,154,10" Grid.ColumnSpan="2">
                     <Grid>
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="90"/>
@@ -189,8 +210,17 @@
                         </Grid.RowDefinitions>
 
                         <TextBlock Text="📄 全局日志" Grid.ColumnSpan="2" Foreground="{StaticResource TextBrush}" FontWeight="SemiBold" Margin="0,0,0,10"/>
-                        <TextBox x:Name="txtLog" Grid.Row="1" Background="#0A1322" Foreground="#DDE8FF" BorderBrush="#2A3A56" Text="[21:43:11] [信息] 脚本已启动" Grid.ColumnSpan="2" Margin="10,0,10,-98" Grid.RowSpan="3" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" Height="98"/>
+                        <TextBox x:Name="txtLog" Grid.Row="1" Background="#0A1322" Foreground="#DDE8FF" BorderBrush="#2A3A56" Text="[21:43:11] [信息] 脚本已启动" Grid.ColumnSpan="2" Margin="10,0,10,-128" Grid.RowSpan="3" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" Height="128"/>
                     </Grid>
+                </Border>
+                <Border Style="{StaticResource CardBorderStyle}" Margin="293,0,10,10" Grid.Column="1">
+                    <StackPanel>
+                        <TextBlock Text="📶 当前状态" Foreground="{StaticResource TextBrush}" FontWeight="SemiBold" Margin="0,0,0,10"/>
+                        <TextBlock Text="脚本状态： ● 未运行" Foreground="{StaticResource SubTextBrush}" Margin="0,20,0,2" VerticalAlignment="Center"/>
+                        <TextBlock x:Name="txtOBSState" Text="OBS连接： ● 已连接" Foreground="#6AD37A" Margin="0,2"/>
+                        <TextBlock Text="账号状态： ● 已登录" Foreground="#6AD37A" Margin="0,2"/>
+                        <TextBlock x:Name="txtPointTotal" Text="车辆热练度总数： --" Foreground="{StaticResource SubTextBrush}" Margin="0,2"/>
+                    </StackPanel>
                 </Border>
             </Grid>
 
@@ -211,10 +241,13 @@
 
                         <TextBlock Text="🧬 蓝图脚本" Foreground="{StaticResource TextBrush}" FontWeight="SemiBold" Margin="0,0,0,10"/>
                         <DockPanel Grid.Row="1" Margin="0,0,0,10">
-                            <StackPanel Orientation="Horizontal" DockPanel.Dock="Left">
-                                <Button Content="▶ 开始" Style="{StaticResource ActionButtonStyle}" Width="50" Height="25"/>
-                                <Button Content="⏸ 停止" Style="{StaticResource SecondaryButtonStyle}" Width="50" Height="25"/>
-                                <Button Content="↻ 重置" Style="{StaticResource SecondaryButtonStyle}" Width="50" Height="25"/>
+                                <StackPanel Orientation="Horizontal" DockPanel.Dock="Left" Cursor="Hand">
+                                <Label x:Name="lblGotoRace" Content="按下F9开始" Style="{StaticResource ActionLabelStyle}" Width="80" Height="25"/>
+                                <Label Content="蓝图代码：" Cursor="" Foreground="#FFCAD6F6" VerticalAlignment="Center"/>
+                                <TextBox x:Name="txtScriptCode" TextWrapping="Wrap" Text="890169683" Width="120" Background="#FF1B273B" Foreground="#FFCAD6F6" BorderBrush="#FF32445F" VerticalAlignment="Center"/>
+                                <!-- 新增：单局点数 -->
+                                <Label Content="单局点数：" Foreground="#FFCAD6F6" VerticalAlignment="Center" Margin="8,0,0,0"/>
+                                <TextBox x:Name="txtSinglePoint" Width="80" Text="9" Background="#FF1B273B" Foreground="#FFCAD6F6" BorderBrush="#FF32445F" VerticalAlignment="Center" Margin="4,0,0,0"/>
                             </StackPanel>
                         </DockPanel>
 
@@ -240,10 +273,9 @@
 
                         <StackPanel Grid.Row="3" Margin="0,10,0,0">
                             <TextBlock Text="整体进度" Foreground="{StaticResource SubTextBrush}"/>
-                            <ProgressBar Value="100" Height="10" Margin="0,4,0,0" Background="#162238" Foreground="#9B4DFF"/>
+                            <ProgressBar x:Name="PrgPointTo999" Value="100" Height="10" Margin="0,4,0,0" Background="#162238" Foreground="#9B4DFF"/>
                             <DockPanel Margin="0,6,0,0">
-                                <TextBlock Text="已用时：00:00:15" Foreground="{StaticResource SubTextBrush}"/>
-                                <TextBlock Text="预计剩余：00:00:00" Foreground="{StaticResource SubTextBrush}" DockPanel.Dock="Right"/>
+                                <TextBlock x:Name="txtRaceTime" Text="已用时：00:00:00" Foreground="{StaticResource SubTextBrush}"/>
                             </DockPanel>
                         </StackPanel>
                     </Grid>
@@ -261,9 +293,7 @@
                         <TextBlock Text="✨ 消耗所有车辆热练度" Foreground="{StaticResource TextBrush}" FontWeight="SemiBold" Margin="0,0,0,10"/>
                         <DockPanel Grid.Row="1" Margin="0,0,0,10">
                             <StackPanel Orientation="Horizontal" DockPanel.Dock="Left">
-                                <Button x:Name="btnPoint" Content="▶ 开始消耗" Style="{StaticResource ActionButtonStyle}" Background="#DE7F23" BorderBrush="#F39A45" Width="80" Height="25" Click="btnPoint_Click"/>
-                                <Button Content="⏸ 停止" Style="{StaticResource SecondaryButtonStyle}" Width="50" Height="25"/>
-                                <Button Content="↻ 重置" Style="{StaticResource SecondaryButtonStyle}" Width="50" Height="25"/>
+                                <Label x:Name="lblPoint" Content="按下F8开始" Style="{StaticResource ActionLabelStyle}" Width="80" Height="25" Background="#DE7F23" BorderBrush="#F39A45"/>
                             </StackPanel>
                             <StackPanel Orientation="Horizontal" DockPanel.Dock="Right" HorizontalAlignment="Right">
                                 <TextBlock Text="预估时间：--:--" Foreground="{StaticResource SubTextBrush}" VerticalAlignment="Center"/>
@@ -289,16 +319,15 @@
                  Background="Transparent" 
                  BorderThickness="0"
                  Foreground="#FFFFFF" Height="164"/>
-                                
+
                             </Grid>
                         </Border>
 
                         <StackPanel Grid.Row="3" Margin="0,10,0,0">
                             <TextBlock Text="消耗进度" Foreground="{StaticResource SubTextBrush}"/>
-                            <ProgressBar Value="100" Height="10" Margin="0,4,0,0" Background="#162238" Foreground="#F08E2F"/>
+                            <ProgressBar x:Name="PrgPointToZero" Value="100" Height="10" Margin="0,4,0,0" Background="#162238" Foreground="#F08E2F"/>
                             <DockPanel Margin="0,6,0,0">
-                                <TextBlock Text="已用时：00:00:12" Foreground="{StaticResource SubTextBrush}"/>
-                                <TextBlock Text="剩余点数：0" Foreground="{StaticResource SubTextBrush}" DockPanel.Dock="Right"/>
+                                <TextBlock x:Name="txtCarPointTime" Text="已用时：00:00:00" Foreground="{StaticResource SubTextBrush}"/>
                             </DockPanel>
                         </StackPanel>
                     </Grid>
@@ -312,7 +341,8 @@
                         <Button Content="OBS" Click="Button_Click" Style="{StaticResource SecondaryButtonStyle}" Width="120"/>
                         <Button Content="KeyBoard" Click="Button_Click_1" Style="{StaticResource SecondaryButtonStyle}" Width="120"/>
                         <Button x:Name="btnOCRTest" Content="OCR" Click="btnOCRTest_Click" Style="{StaticResource SecondaryButtonStyle}" Width="120"/>
-                        <Button x:Name="btnTestGameControl" Content="脚本测试" Style="{StaticResource SecondaryButtonStyle}" Width="140" Click="btnTestGameControl_Click"/>
+                        <Button x:Name="btnTestGameControl" Content="消耗技能点脚本测试" Style="{StaticResource SecondaryButtonStyle}" Width="140" Click="btnTestGameControl_Click"/>
+                        <Button x:Name="btnTestBycar" Content="买车脚本测试" Style="{StaticResource SecondaryButtonStyle}" Width="140" Click="btnTestBycar_Click"/>
                         <Button x:Name="btnROI" Content="ROI" Style="{StaticResource SecondaryButtonStyle}" Width="120" Click="btnROI_Click"/>
                         <Button x:Name="btnMousePos" Content="MousePos" Style="{StaticResource SecondaryButtonStyle}" Width="140" Click="btnMousePos_Click"/>
                     </WrapPanel>
@@ -324,7 +354,7 @@
                 <Separator/>
                 <StatusBarItem x:Name="txtRunTime" Content="运行时长：00:15:30"/>
                 <Separator/>
-                <StatusBarItem Content="作者：Horizon Script Team"/>
+                <StatusBarItem Content="作者：1282297544"/>
             </StatusBar>
             <Button x:Name="btnClose" Content="X" Style="{StaticResource SecondaryButtonStyle}" Margin="1311,-40,0,52" Click="btnClose_Click" Height="30"/>
         </Grid>

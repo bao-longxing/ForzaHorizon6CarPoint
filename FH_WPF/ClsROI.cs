@@ -17,13 +17,21 @@ namespace FH_WPF
         {
             选项,
             车辆收藏,
-            我的车辆,
+            车辆卡片界面顶部我的车辆,
+            车库界面我的车辆按钮,
             前往制造商,
             车辆框,
             升级与调教,
             车辆熟练度,
-            熟练度点数,
+            加点界面熟练度点数,
             车库中当前车型,
+            车库品牌,
+            大世界安娜,
+            技术点数可用,
+            重新开始,
+            收集簿,
+            从车库移除车辆,
+            车辆卡片界面当前驾驶的车辆,
         }
 
         // 用于在运行时存储和管理命名的 ROI 区域（键使用枚举 UIElem）
@@ -122,24 +130,18 @@ namespace FH_WPF
                     Cv2.PutText(display, tip, new OpenCvSharp.Point(rect.X + pad, rect.Y + textSize.Height + (pad / 2)), font, scale, Scalar.White, 1);
 
                     // 使用 OpenCvSharp 的 SelectROI，让用户在 display 上绘制 ROI（返回 OpenCvSharp.Rect）
-                    OpenCvSharp.Rect cvRoi;
+                    OpenCvSharp.Rect cvRoi = default;
                     try
                     {
-                        Cv2.NamedWindow(windowName, WindowFlags.AutoSize);
-                        cvRoi = Cv2.SelectROI(windowName, display, showCrosshair, false);
-                        Cv2.DestroyWindow(windowName);
+                        ClsGameControl.RunOnCvThread(() =>
+                        {
+                            Cv2.NamedWindow(windowName, WindowFlags.AutoSize);
+                            cvRoi = Cv2.SelectROI(windowName, display, showCrosshair, false);
+                            Cv2.DestroyWindow(windowName);
+                        });
                     }
                     catch
                     {
-                        // 某些环境下带 windowName 的重载可能失败，回退到不带名称的重载
-                        try
-                        {
-                            cvRoi = Cv2.SelectROI(display, showCrosshair, false);
-                        }
-                        catch
-                        {
-                            cvRoi = new OpenCvSharp.Rect();
-                        }
                         try { Cv2.DestroyAllWindows(); } catch { }
                     }
 

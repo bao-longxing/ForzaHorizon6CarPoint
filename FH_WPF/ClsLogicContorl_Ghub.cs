@@ -53,6 +53,9 @@ namespace FH_WPF
         [DllImport(DllName, CallingConvention = CallingConvention.Cdecl, EntryPoint = "device_open")]
         private static extern int device_open();
 
+        [DllImport(DllName, CallingConvention = CallingConvention.Cdecl, EntryPoint = "device_close")]
+        private static extern void device_close();
+
         // button: 1=左键, 2=中键, 3=右键, 4=侧键后, 5=侧键前
         [DllImport(DllName, CallingConvention = CallingConvention.Cdecl, EntryPoint = "mouse_down")]
         private static extern void mouse_down(int button);
@@ -90,12 +93,12 @@ namespace FH_WPF
                 { Key.D4, "4" }, { Key.D5, "5" }, { Key.D6, "6" }, { Key.D7, "7" },
                 { Key.D8, "8" }, { Key.D9, "9" },
                 // 小键盘
-                { Key.NumPad0, "numpad0" }, { Key.NumPad1, "numpad1" }, { Key.NumPad2, "numpad2" },
-                { Key.NumPad3, "numpad3" }, { Key.NumPad4, "numpad4" }, { Key.NumPad5, "numpad5" },
-                { Key.NumPad6, "numpad6" }, { Key.NumPad7, "numpad7" }, { Key.NumPad8, "numpad8" },
-                { Key.NumPad9, "numpad9" },
-                { Key.Multiply, "numpad*" }, { Key.Add, "numpad+" },
-                { Key.Subtract, "numpad-" }, { Key.Decimal, "numpad." }, { Key.Divide, "numpad/" },
+                { Key.NumPad0, "numpad_0" }, { Key.NumPad1, "numpad_1" }, { Key.NumPad2, "numpad_2" },
+                { Key.NumPad3, "numpad_3" }, { Key.NumPad4, "numpad_4" }, { Key.NumPad5, "numpad_5" },
+                { Key.NumPad6, "numpad_6" }, { Key.NumPad7, "numpad_7" }, { Key.NumPad8, "numpad_8" },
+                { Key.NumPad9, "numpad_9" },
+                { Key.Multiply, "numpad_mul" }, { Key.Add, "numpad_plus" },
+                { Key.Subtract, "numpad_minus" }, { Key.Decimal, "numpad_dec" }, { Key.Divide, "numpad_div" },
                 // 功能键
                 { Key.F1,  "f1"  }, { Key.F2,  "f2"  }, { Key.F3,  "f3"  }, { Key.F4,  "f4"  },
                 { Key.F5,  "f5"  }, { Key.F6,  "f6"  }, { Key.F7,  "f7"  }, { Key.F8,  "f8"  },
@@ -106,23 +109,23 @@ namespace FH_WPF
                 { Key.LeftAlt,    "lalt"   }, { Key.RightAlt,   "ralt"   },
                 { Key.LWin,       "lwin"   }, { Key.RWin,       "rwin"   },
                 // 控制键
-                { Key.Escape,     "esc"    }, { Key.Tab,       "tab"        },
-                { Key.CapsLock,   "capslock"  }, { Key.Back,      "backspace"  },
-                { Key.Enter,      "enter"     }, { Key.Space,     "space"      },
-                { Key.Insert,     "insert"    }, { Key.Delete,    "delete"     },
-                { Key.Home,       "home"      }, { Key.End,       "end"        },
-                { Key.PageUp,     "pageup"    }, { Key.PageDown,  "pagedown"   },
-                { Key.PrintScreen,"printscreen"},{ Key.Scroll,    "scrolllock" },
-                { Key.Pause,      "pause"     }, { Key.NumLock,   "numlock"    },
+                { Key.Escape,     "esc"      }, { Key.Tab,       "tab"         },
+                { Key.CapsLock,   "cap"      }, { Key.Back,      "back_space"  },
+                { Key.Enter,      "enter"    }, { Key.Space,     "space"       },
+                { Key.Insert,     "insert"   }, { Key.Delete,    "del"         },
+                { Key.Home,       "home"     }, { Key.End,       "end"         },
+                { Key.PageUp,     "page_up"  }, { Key.PageDown,  "page_down"   },
+                { Key.PrintScreen,"printscreen"},{ Key.Scroll,    "scroll_lock" },
+                { Key.Pause,      "pause"    }, { Key.NumLock,   "numlock"     },
                 // 方向键
                 { Key.Up, "up" }, { Key.Down, "down" }, { Key.Left, "left" }, { Key.Right, "right" },
                 // 标点符号
-                { Key.OemMinus,     "-"  }, { Key.OemPlus,      "="  },
-                { Key.OemOpenBrackets, "[" }, { Key.Oem6,       "]"  },
-                { Key.Oem5,         "\\" }, { Key.OemSemicolon, ";"  },
-                { Key.OemQuotes,    "'"  }, { Key.OemComma,     ","  },
-                { Key.OemPeriod,    "."  }, { Key.OemQuestion,  "/"  },
-                { Key.Oem3,         "`"  },
+                { Key.OemMinus,     "minus"  }, { Key.OemPlus,      "equal"  },
+                { Key.OemOpenBrackets, "square_bracket_left" }, { Key.Oem6,       "square_bracket_right"  },
+                { Key.Oem5,         "back_slash" }, { Key.OemSemicolon, "column"  },
+                { Key.OemQuotes,    "quote"  }, { Key.OemComma,     "comma"  },
+                { Key.OemPeriod,    "period"  }, { Key.OemQuestion,  "slash"  },
+                { Key.Oem3,         "back_tick"  }, { Key.Apps, "apps" },
             };
 
         public static bool DeviceOpen()
@@ -140,6 +143,23 @@ namespace FH_WPF
                 IsInitialized = false;
             }
             return IsInitialized;
+        }
+
+        /// <summary>
+        /// 关闭设备并清理状态。
+        /// </summary>
+        public static void DeviceClose()
+        {
+            if (!IsInitialized) return;
+            try
+            {
+                device_close();
+            }
+            catch
+            {
+                // 忽略本地关闭时可能抛出的异常
+            }
+            IsInitialized = false;
         }
 
         /// <summary>
@@ -212,6 +232,116 @@ namespace FH_WPF
         {
             if (!IsInitialized) return;
             moveR(x, y, absMove ? 1 : 0);
+        }
+
+        /// <summary>
+        /// 使用键盘输入文本字符串（用于输入蓝图代码等场景）。
+        /// 通过 KeyMap 和 Shift 组合来实现各种字符的输入，每个字符之间间隔10ms。
+        /// 支持字母、数字、常见符号以及小键盘。
+        /// </summary>
+        /// <param name="text">要输入的文本</param>
+        public static void InputText(string text)
+        {
+            if (!IsInitialized || string.IsNullOrEmpty(text))
+                return;
+
+            // 创建反向 KeyMap（从 ghub key string 到 Key 枚举）
+            var reverseKeyMap = new Dictionary<string, Key>();
+            foreach (var kvp in KeyMap)
+            {
+                if (!reverseKeyMap.ContainsKey(kvp.Value))
+                {
+                    reverseKeyMap[kvp.Value] = kvp.Key;
+                }
+            }
+
+            // 定义需要 Shift 的符号映射
+            var shiftCharMap = new Dictionary<char, Key>
+            {
+                { '!', Key.D1 },   // Shift + 1
+                { '@', Key.D2 },   // Shift + 2
+                { '#', Key.D3 },   // Shift + 3
+                { '$', Key.D4 },   // Shift + 4
+                { '%', Key.D5 },   // Shift + 5
+                { '^', Key.D6 },   // Shift + 6
+                { '&', Key.D7 },   // Shift + 7
+                { '*', Key.D8 },   // Shift + 8
+                { '(', Key.D9 },   // Shift + 9
+                { ')', Key.D0 },   // Shift + 0
+                { '_', Key.OemMinus },     // Shift + -
+                { '+', Key.OemPlus },      // Shift + =
+                { '{', Key.Oem6 },         // Shift + [（根据键盘布局调整）
+                { '}', Key.Oem5 },         // Shift + ]
+                { '|', Key.Oem5 },         // Shift + \
+                { ':', Key.OemSemicolon }, // Shift + ;
+                { '"', Key.OemQuotes },    // Shift + '
+                { '<', Key.OemComma },     // Shift + ,
+                { '>', Key.OemPeriod },    // Shift + .
+                { '?', Key.OemQuestion },  // Shift + /
+                { '~', Key.Oem3 },         // Shift + `
+            };
+
+            foreach (var ch in text)
+            {
+                try
+                {
+                    // 如果是大写字母，需要按 Shift
+                    if (char.IsUpper(ch))
+                    {
+                        Key key = (Key)Enum.Parse(typeof(Key), ch.ToString(), true);
+                        if (KeyMap.ContainsKey(key))
+                        {
+                            KeyDown(Key.LeftShift);
+                            Thread.Sleep(10);
+                            ClickKey(key, 50);
+                            KeyUp(Key.LeftShift);
+                        }
+                    }
+                    // 小写字母
+                    else if (char.IsLower(ch))
+                    {
+                        Key key = (Key)Enum.Parse(typeof(Key), ch.ToString(), true);
+                        if (KeyMap.ContainsKey(key))
+                        {
+                            ClickKey(key, 50);
+                        }
+                    }
+                    // 数字
+                    else if (char.IsDigit(ch))
+                    {
+                        Key key = (Key)Enum.Parse(typeof(Key), "D" + ch, true);
+                        if (KeyMap.ContainsKey(key))
+                        {
+                            ClickKey(key, 50);
+                        }
+                    }
+                    // 特殊符号（需要 Shift）
+                    else if (shiftCharMap.TryGetValue(ch, out Key shiftKey))
+                    {
+                        KeyDown(Key.LeftShift);
+                        Thread.Sleep(10);
+                        ClickKey(shiftKey, 50);
+                        KeyUp(Key.LeftShift);
+                    }
+                    // 直接映射的符号
+                    else if (reverseKeyMap.TryGetValue(ch.ToString(), out Key directKey))
+                    {
+                        ClickKey(directKey, 50);
+                    }
+                    // 空格
+                    else if (ch == ' ')
+                    {
+                        ClickKey(Key.Space, 50);
+                    }
+
+                    Thread.Sleep(10);
+                }
+                catch
+                {
+                    // 如果某个字符失败，继续处理下一个字符
+                    continue;
+                }
+            }
         }
 
         /// <summary>将 WPF Key 枚举转换为 ghub 键名，找不到时返回 ""。</summary>
