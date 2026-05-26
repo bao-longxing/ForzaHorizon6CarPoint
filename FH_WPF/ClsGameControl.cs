@@ -392,12 +392,13 @@ namespace FH_WPF
         {
             //检测是否出现点赞框
             bool rst = TryRecognizeAndClickROI(ClsROI.UIElem.整页, "评价", shouldClick: false, debug: false);
+
             if (rst)
             {
                 rst &= TryRecognizeAndClickROI(ClsROI.UIElem.整页, "取消", shouldClick: true, debug: false);
             }
             //点击后等待退出
-            Thread.Sleep(9000);
+            Thread.Sleep(1500);
             return rst;
         }
 
@@ -547,6 +548,7 @@ namespace FH_WPF
                     if (!TryRecognizeAndClickROI(ClsROI.UIElem.车库品牌, manufacturerName, shouldClick: false, debug: IsDebug))
                     {
                         ClsLogger.LogPoint($"DeleteCar: 车库品牌不再包含 [{manufacturerName}]，结束扫描。累计删除 {deletedCount} 辆。");
+                        finished = true;
                         break;
                     }
 
@@ -721,15 +723,10 @@ namespace FH_WPF
                 // end 扫描循环
 
                 // 外层循环因"找不到可删除车辆"正常退出时，按 ESC 退出车库并触发完成事件
-                if (!finished)
+                if (finished)
                 {
                     ClickKeyAndWait(Key.Escape, 1000, nameof(DeleteCar));
-                    ClickKeyAndWait(Key.Escape, 9000, nameof(DeleteCar));
-                    System.Windows.Application.Current.Dispatcher.BeginInvoke(() =>
-                    {
-                        DeleteCarCompleted?.Invoke(null, EventArgs.Empty);
-                    });
-                    finished = true;
+                    ClickKeyAndWait(Key.Escape, 11000, nameof(DeleteCar));
                 }
                 #endregion
             }
@@ -745,7 +742,7 @@ namespace FH_WPF
             }
             finally
             {
-                if (!finished)
+                if (finished)
                 {
                     try
                     {
@@ -1051,6 +1048,8 @@ namespace FH_WPF
                         {
                             ClickKeyAndWait(Key.Right, 500, nameof(UpCarPoint));
                         }
+                        Thread.Sleep(1500);
+
 
 
                         if (!TryRecognizeAndClickROI(ClsROI.UIElem.车库品牌, manufacturerName, shouldClick: false, debug: IsDebug))
@@ -1176,7 +1175,7 @@ namespace FH_WPF
                         ClsLogger.LogPoint($"循环结束: 点数 {currentPoint} - 30 = {remainingAfter} 小于30，执行完加点后不再重复。");
                         //退回主界面
                         ClickKeyAndWait(Key.Escape, 1000, nameof(UpCarPoint));
-                        ClickKeyAndWait(Key.Escape, 7000, nameof(UpCarPoint));
+                        ClickKeyAndWait(Key.Escape, 11000, nameof(UpCarPoint));
                         finished = true;
                         break;
                     }
@@ -1197,7 +1196,7 @@ namespace FH_WPF
             finally
             {
                 #region 完成和清理
-                if (!finished)
+                if (finished)
                 {
                     try { System.Windows.Application.Current.Dispatcher.BeginInvoke(() => { AllCarPointComplete?.Invoke(null, EventArgs.Empty); }); } catch { }
                 }
@@ -1357,7 +1356,7 @@ namespace FH_WPF
                     ClickKeyAndWait(Key.Escape, 1000, nameof(BuyCar));
                 }
 
-                Thread.Sleep(7000);
+                Thread.Sleep(11000);
                 ClsLogger.Log("BuyCar: 购买完成事件已触发");
                 finished = true;
             }
@@ -1373,7 +1372,7 @@ namespace FH_WPF
             }
             finally
             {
-                if (!finished)
+                if (finished)
                 {
                     try { System.Windows.Application.Current.Dispatcher.BeginInvoke(() => { BuyCarCompleted?.Invoke(null, EventArgs.Empty); }); } catch { }
                 }
@@ -1680,6 +1679,7 @@ namespace FH_WPF
                 // 根据单局点数计算需要循环的次数
                 int pointsNeeded = 999 - techPoints;
                 int loopsRequired = (pointsNeeded + pointsPerRace - 1) / pointsPerRace; // 向上取整
+                loopsRequired = Math.Max(loopsRequired, 1); //最小为1次
                 ClsLogger.LogScript($"步骤8.5: 当前技术点数={techPoints}，需要获得{pointsNeeded}点，单局{pointsPerRace}点，需要循环{loopsRequired}次");
                 System.Windows.Application.Current.Dispatcher.BeginInvoke(() => { DetectPoint?.Invoke(null, techPoints); });
 
@@ -2125,9 +2125,9 @@ namespace FH_WPF
             }
             finally
             {
-                if (!finished)
+                if (finished)
                 {
-                    try { System.Windows.Application.Current.Dispatcher.BeginInvoke(() => { PointCompletionCompleted?.Invoke(null, false); }); } catch { }
+                    try { System.Windows.Application.Current.Dispatcher.BeginInvoke(() => { PointCompletionCompleted?.Invoke(null, !finished); }); } catch { }
                 }
             }
         }

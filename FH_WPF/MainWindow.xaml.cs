@@ -693,6 +693,22 @@ namespace FH_WPF
         #region 键盘与热键
         private void _keyboardHook_FunctionKeyPressed(object? sender, FunctionKeyEventArgs e)
         {
+            // F11: 强制停止自动化状态机
+            if (e.Key == Key.F11)
+            {
+                try
+                {
+                    DisableAutoManager();
+                    AppendLog("[信息] 自动化管理器已被强制停止 (F11)");
+                }
+                catch (Exception ex)
+                {
+                    AppendLog($"[错误] 使用 F11 停止自动化管理器失败: {ex.Message}");
+                }
+
+                return;
+            }
+
             // F5: 切换自动化管理器
             if (e.Key == Key.F5)
             {
