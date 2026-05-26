@@ -11,7 +11,7 @@
 
 //        static ClsLogicContorl()
 //        {
-//            // Ensure the native DLL exists next to the executing assembly to provide a clearer error
+//            // 确保本地 DLL 与可执行程序集位于同一目录，以便在缺失时提供更明确的错误信息
 //            var baseDir = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location) ?? Environment.CurrentDirectory;
 //            var dllPath = Path.Combine(baseDir, DllName);
 //            if (!File.Exists(dllPath))
@@ -20,7 +20,7 @@
 //            }
 //        }
 
-//        // P/Invoke declarations. Using Cdecl which is the common default for native C exports.
+//        // P/Invoke 声明，使用 Cdecl 调用约定（本地 C 导出常用）
 //        [DllImport(DllName, CallingConvention = CallingConvention.Cdecl, EntryPoint = "move_R")]
 //        private static extern void move_R(int x, int y);
 
@@ -39,7 +39,7 @@
 //        [DllImport(DllName, CallingConvention = CallingConvention.Cdecl, EntryPoint = "click_Right_up")]
 //        private static extern void click_Right_up();
 
-//        // Public safe wrappers
+//        // 公共安全包装器
 //        public static void MoveRelative(int dx, int dy) => move_R(dx, dy);
 
 //        public static void MoveAbsolute(int x, int y) => move_Abs(x, y);
@@ -52,7 +52,7 @@
 
 //        public static void RightUp() => click_Right_up();
 
-//        // Convenience helpers: move then click
+//        // 便捷助手：先移动然后点击
 //        public static void ClickLeft(int x, int y, int holdMs = 50)
 //        {
 //            move_Abs(x, y);

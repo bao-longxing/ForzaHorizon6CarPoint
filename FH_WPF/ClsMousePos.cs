@@ -10,7 +10,7 @@ namespace FH_WPF
 {
     internal static class ClsMousePos
     {
-        // Public control
+        // 公共控制接口
         public static bool IsRunning => _timer != null && _timer.IsEnabled;
 
         public static void Start()
@@ -72,7 +72,7 @@ namespace FH_WPF
             if (IsRunning) Stop(); else Start();
         }
 
-        // Private implementation
+        // 私有实现
         private static DispatcherTimer _timer;
         private static OverlayWindow _overlay;
 
@@ -126,7 +126,7 @@ namespace FH_WPF
         [StructLayout(LayoutKind.Sequential)]
         private struct POINT { public int X; public int Y; }
 
-        // Overlay window implementation
+        // 覆盖层窗口实现
         private class OverlayWindow : Window
         {
             private readonly TextBlock _text;
@@ -187,7 +187,7 @@ namespace FH_WPF
                 _text.Text = s;
             }
 
-            // No native interop here to keep hot-reload friendly
+                // 此处不使用本地互操作以保持热重载友好
         }
     }
 }

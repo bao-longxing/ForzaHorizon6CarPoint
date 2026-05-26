@@ -4,12 +4,14 @@ using System.Windows;
 using System.Windows.Input;
 using System.Windows.Threading;
 using System.Windows.Media;
+using System.IO;
+using System.Text.Json;
 
 namespace FH_WPF
 {
     public partial class MainWindow : System.Windows.Window
     {
-        #region Fields
+        #region 字段
         private readonly DispatcherTimer _timer;
         private readonly DateTime _startTime;
         // 运行/计时相关
@@ -20,6 +22,7 @@ namespace FH_WPF
         private DateTime? _lastPointUpdateTime;
         private TimeSpan? _pointUpdateInterval;
         private int _currentPoint = 0;
+        private int? _previousPoint = null;
         private const int MaxPoint = 999;
         private const int PointModeSingleLoopPoint = 30;
         private ClsKeyboardHook? _keyboardHook;
@@ -28,7 +31,7 @@ namespace FH_WPF
         private bool _autoManagerEnabled = false;
         #endregion
 
-        #region OBS UI Updates
+        #region OBS 界面更新
         private void OnObsConnected()
         {
             // 确保在 UI 线程执行
@@ -59,12 +62,20 @@ namespace FH_WPF
             }
             catch { }
         }
+
+        // 兼容 XAML 中的命名处理器
+        private void btnOBSSettings_Click(object sender, RoutedEventArgs e)
+        {
+            Button_Click(sender, e);
+        }
         #endregion
 
-        #region Constructor & Initialization
+        #region 构造函数与初始化
         public MainWindow()
         {
             InitializeComponent();
+            // 加载持久化的界面数据
+            try { LoadSettings(); } catch { }
             _startTime = DateTime.Now;
             _timer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
             _timer.Tick += Timer_Tick;
@@ -74,10 +85,18 @@ namespace FH_WPF
             ClsLogger.Init(txtLog, txtScriptLog, txtPointLog);
 
             //初始化OBS
-            if (!ClsObs.IsConnected)
+            // 延后连接 OBS，使用持久化的配置（如果存在）
+            try
             {
-                ClsObs.ConnectAsync("192.168.31.110", 4455, "").GetAwaiter().GetResult();
-                AppendLog("[信息] OBS 已初始化");
+                if (!string.IsNullOrWhiteSpace(_obsIp) && _obsPort > 0)
+                {
+                    ClsObs.ConnectAsync(_obsIp, _obsPort, _obsPassword ?? string.Empty).GetAwaiter().GetResult();
+                    AppendLog("[信息] OBS 已按配置初始化");
+                }
+            }
+            catch (Exception ex)
+            {
+                AppendLog($"[错误] OBS 初始化失败: {ex.Message}");
             }
 
             //初始化OCR
@@ -121,36 +140,100 @@ namespace FH_WPF
             ClsGameControl.DetectPoint += ClsGameControl_DetectPoint;
 
             //订阅单个车辆完成事件和所有车辆完成事件
-            ClsGameControl.SingelCarPointComplete += ClsGameControl_SingelCarPointComplete;
             ClsGameControl.AllCarPointComplete += ClsGameControl_AllCarPointComplete;
         }
+
+        #region 设置持久化
+        private class UISettings
+        {
+            public string? txtCarScore { get; set; }
+            public string? txtCarFactory { get; set; }
+            public string? txtCarType { get; set; }
+            public string? txtBuyCarNum { get; set; }
+            public string? txtScriptCode { get; set; }
+            public string? txtSinglePoint { get; set; }
+            public string? ObsIp { get; set; }
+            public int? ObsPort { get; set; }
+            public string? ObsPassword { get; set; }
+        }
+
+        // 持久化的 OBS 配置缓存
+        private string? _obsIp;
+        private int _obsPort;
+        private string? _obsPassword;
+
+        private string GetSettingsPath()
+        {
+            var dir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "FH_WPF");
+            Directory.CreateDirectory(dir);
+            return Path.Combine(dir, "settings.json");
+        }
+
+        private void LoadSettings()
+        {
+            try
+            {
+                var path = GetSettingsPath();
+                if (!File.Exists(path)) return;
+                var json = File.ReadAllText(path);
+                var opts = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+                var s = JsonSerializer.Deserialize<UISettings>(json, opts);
+                if (s == null) return;
+                Dispatcher.Invoke(() =>
+                {
+                    try { if (txtCarScore != null && s.txtCarScore != null) txtCarScore.Text = s.txtCarScore; } catch { }
+                    try { if (txtCarFactory != null && s.txtCarFactory != null) txtCarFactory.Text = s.txtCarFactory; } catch { }
+                    try { if (txtCarType != null && s.txtCarType != null) txtCarType.Text = s.txtCarType; } catch { }
+                    try { if (txtBuyCarNum != null && s.txtBuyCarNum != null) txtBuyCarNum.Text = s.txtBuyCarNum; } catch { }
+                    try { if (txtScriptCode != null && s.txtScriptCode != null) txtScriptCode.Text = s.txtScriptCode; } catch { }
+                    try { if (txtSinglePoint != null && s.txtSinglePoint != null) txtSinglePoint.Text = s.txtSinglePoint; } catch { }
+                });
+
+                // 读取 OBS 配置到内存
+                try { _obsIp = s.ObsIp; } catch { }
+                try { if (s.ObsPort.HasValue) _obsPort = s.ObsPort.Value; } catch { }
+                try { _obsPassword = s.ObsPassword; } catch { }
+            }
+            catch
+            {
+                // ignore load errors
+            }
+        }
+
+        private void SaveSettings()
+        {
+            try
+            {
+                var s = new UISettings();
+                try { s.txtCarScore = txtCarScore?.Text; } catch { }
+                try { s.txtCarFactory = txtCarFactory?.Text; } catch { }
+                try { s.txtCarType = txtCarType?.Text; } catch { }
+                try { s.txtBuyCarNum = txtBuyCarNum?.Text; } catch { }
+                try { s.txtScriptCode = txtScriptCode?.Text; } catch { }
+                try { s.txtSinglePoint = txtSinglePoint?.Text; } catch { }
+                try { s.ObsIp = _obsIp; } catch { }
+                try { s.ObsPort = _obsPort; } catch { }
+                try { s.ObsPassword = _obsPassword; } catch { }
+
+                var opts = new JsonSerializerOptions { WriteIndented = true };
+                var json = JsonSerializer.Serialize(s, opts);
+                var path = GetSettingsPath();
+                File.WriteAllText(path, json);
+            }
+            catch
+            {
+                // ignore save errors
+            }
+        }
+        #endregion
         #endregion
 
-        #region GameControl Event Handlers
+        #region GameControl 事件处理
         private void ClsGameControl_AllCarPointComplete(object? sender, EventArgs e)
         {
             UpCarIsAllComplete = true;
         }
 
-        private void ClsGameControl_SingelCarPointComplete(object? sender, EventArgs e)
-        {
-            if (!UpCarIsAllComplete)
-            {
-                try
-                {
-                    string factory = txtCarFactory.Text;
-                    string type = txtCarType.Text;
-                    RunBackground(() => ClsGameControl.UpCarPoint(factory, type, false),
-                        startLog: null,
-                        cancelLog: "[信息] 消耗点数操作已取消",
-                        errorPrefix: "消耗点数操作失败");
-                }
-                catch (Exception ex)
-                {
-                    AppendLog("[错误] 启动消耗点数失败: " + ex.Message);
-                }
-            }
-        }
 
         private void ClsGameControl_DetectPoint(object? sender, int e)
         {
@@ -165,6 +248,8 @@ namespace FH_WPF
             }
 
             _lastPointUpdateTime = now;
+            // 在更新前记录之前的点数
+            _previousPoint = _currentPoint;
             _currentPoint = Math.Max(0, Math.Min(MaxPoint, e));
 
             txtPointTotal.Text = $"车辆热练度总数： {_currentPoint}";
@@ -175,7 +260,7 @@ namespace FH_WPF
         }
         #endregion
 
-        #region Auto Manager
+        #region 自动化管理器
         /// <summary>
         /// 自动化管理：接收各类事件并自动调用 ClsGameControl 执行动作
         /// 通过 F5 切换启用/禁用
@@ -186,7 +271,6 @@ namespace FH_WPF
             _autoManagerEnabled = true;
             UpCarIsAllComplete = false;
             // 订阅事件
-            ClsGameControl.SingelCarPointComplete += Auto_SingelCarPointComplete;
             ClsGameControl.AllCarPointComplete += Auto_AllCarPointComplete;
             ClsGameControl.PointCompletionCompleted += Auto_PointCompletionCompleted;
             ClsGameControl.BuyCarCompleted += Auto_BuyCarCompleted;
@@ -197,32 +281,10 @@ namespace FH_WPF
         {
             if (!_autoManagerEnabled) return;
             _autoManagerEnabled = false;
-            try { ClsGameControl.SingelCarPointComplete -= Auto_SingelCarPointComplete; } catch { }
             try { ClsGameControl.AllCarPointComplete -= Auto_AllCarPointComplete; } catch { }
             try { ClsGameControl.PointCompletionCompleted -= Auto_PointCompletionCompleted; } catch { }
             try { ClsGameControl.BuyCarCompleted -= Auto_BuyCarCompleted; } catch { }
             try { ClsGameControl.BlueprintExecutionStarted -= Auto_BlueprintExecutionStarted; } catch { }
-        }
-
-        private void Auto_SingelCarPointComplete(object? sender, EventArgs e)
-        {
-            try
-            {
-                AppendLog("[自动] 单辆点数完成事件收到");
-                if (!UpCarIsAllComplete && _autoManagerEnabled)
-                {
-                    string factory = txtCarFactory?.Text ?? string.Empty;
-                    string type = txtCarType?.Text ?? string.Empty;
-                    RunBackground(() => ClsGameControl.UpCarPoint(factory, type, false),
-                        startLog: "[自动] 开始自动消耗点数",
-                        cancelLog: "[自动] 自动消耗点数已取消",
-                        errorPrefix: "自动消耗点数失败");
-                }
-            }
-            catch (Exception ex)
-            {
-                AppendLog($"[错误] Auto_SingelCarPointComplete: {ex.Message}");
-            }
         }
 
         private void Auto_AllCarPointComplete(object? sender, EventArgs e)
@@ -289,7 +351,7 @@ namespace FH_WPF
         }
         #endregion
 
-        #region Keyboard & Hotkeys
+        #region 键盘与热键
         private void _keyboardHook_FunctionKeyPressed(object? sender, FunctionKeyEventArgs e)
         {
             // F5: 切换自动化管理器
@@ -316,8 +378,9 @@ namespace FH_WPF
                 return;
             }
 
-            if (e.Key == Key.F9)
+            if (e.Key == Key.F8)
             {
+                // F8: 蓝图脚本
                 AppendLog("[信息] 脚本赛车测试 按钮点击");
                 AppendScriptLog("[测试] 启动 GotoScriptRace 测试");
 
@@ -337,9 +400,9 @@ namespace FH_WPF
                     AppendLog("[错误] 启动脚本赛车失败: " + ex.Message);
                 }
             }
-            else if (e.Key == Key.F8)
+            else if (e.Key == Key.F9)
             {
-                // 与 lblGotoRace 一致的行为：按下 F8 开始消耗点数
+                // F9: 与 lblPoint 一致的行为：开始消耗点数
                 UpCarIsAllComplete = false;
                 AppendPointLog($"[{DateTime.Now:HH:mm:ss}] 开始消耗点数...");
                 try
@@ -356,9 +419,9 @@ namespace FH_WPF
                     AppendLog("[错误] 启动消耗点数失败: " + ex.Message);
                 }
             }
-            else if (e.Key == Key.F7)
+            else if (e.Key == Key.F6)
             {
-                // F7: 从收集簿购买
+                // F6: 从收集簿购买
                 try
                 {
                     int byCount = int.Parse(txtBuyCarNum.Text);
@@ -385,9 +448,9 @@ namespace FH_WPF
                     AppendLog("[错误] 启动买车失败: " + ex.Message);
                 }
             }
-            else if (e.Key == Key.F6)
+            else if (e.Key == Key.F7)
             {
-                // F6: 从车库中移除
+                // F7: 从车库中移除
                 try
                 {
                     AppendLog($"[{DateTime.Now:HH:mm:ss}] 开始移除车辆...");
@@ -414,7 +477,7 @@ namespace FH_WPF
         }
         #endregion
 
-        #region Blueprint / Point Events
+        #region 蓝图与点数事件
         /// <summary>
         /// 蓝图执行开始事件处理（用于启动定时器等）
         /// </summary>
@@ -444,8 +507,7 @@ namespace FH_WPF
         {
             try
             {
-                AppendPointLog("[完成] 点数已达到999！");
-                AppendScriptLog("[事件] 蓝图执行完成 - 点数已达到999");
+                AppendScriptLog("[事件] 蓝图执行完成");
                 _currentPoint = MaxPoint;
                 // 停止计时并在UI上显示最终时长
                 if (_raceRunning && _raceStartTime.HasValue)
@@ -500,7 +562,7 @@ namespace FH_WPF
         }
         #endregion
 
-        #region Timer & Time Updates
+        #region 定时器与时间更新
         private void Timer_Tick(object? sender, EventArgs e)
         {
             try
@@ -510,6 +572,8 @@ namespace FH_WPF
                 // 更新蓝图运行时长与消耗点数时长显示
                 if (_raceRunning) UpdateRaceTime();
                 if (_carPointRunning) UpdateCarPointTime();
+                // 每秒更新预计剩余时间，使其按秒递减
+                UpdateEstimatedTime();
             }
             catch { }
         }
@@ -606,22 +670,87 @@ namespace FH_WPF
 
                 var leftPoint = MaxPoint - _currentPoint;
                 var interval = _pointUpdateInterval.Value;
+                // 计算自上次点数更新以来已过去的时间，用于让预计时间随时间减少
+                var elapsedSinceLastPoint = TimeSpan.Zero;
+                if (_lastPointUpdateTime.HasValue)
+                {
+                    elapsedSinceLastPoint = DateTime.Now - _lastPointUpdateTime.Value;
+                    if (elapsedSinceLastPoint < TimeSpan.Zero) elapsedSinceLastPoint = TimeSpan.Zero;
+                }
 
                 if (_raceRunning)
                 {
+                    // 优先使用观测到的每次更新的增加量（delta）进行估算（如可用）
+                    if (_previousPoint.HasValue)
+                    {
+                        var delta = _currentPoint - _previousPoint.Value; // positive if points are increasing per update
+                        if (delta > 0)
+                        {
+                            var leftToMax = MaxPoint - _currentPoint;
+                            var intervalsNeeded = leftToMax / (double)delta;
+                            var raceTicksByDelta = (long)(intervalsNeeded * interval.Ticks);
+                            var raceRemainingTicksByDelta = raceTicksByDelta - elapsedSinceLastPoint.Ticks;
+                            if (raceRemainingTicksByDelta < 0) raceRemainingTicksByDelta = 0;
+                            var raceEstimatedFromDelta = TimeSpan.FromTicks(raceRemainingTicksByDelta);
+                            txtRaceEstimatedTime.Text = $"预计用时：{FormatTimeSpan(raceEstimatedFromDelta)}";
+                            txtCarPointEstimatedTime.Text = "预计用时：--:--:--";
+                            return;
+                        }
+                        // 如果 delta <= 0，则回退到使用配置的单圈点数估算
+                    }
+
+                    // 回退到使用配置的单圈点数估算
                     var singlePoint = ParseSingleRacePoint();
-                    var raceEstimated = TimeSpan.FromTicks((long)((leftPoint / (double)singlePoint) * interval.Ticks));
-                    txtRaceEstimatedTime.Text = $"预计用时：{FormatTimeSpan(raceEstimated)}";
+                    var raceTicksBySinglePoint = (long)((leftPoint / (double)singlePoint) * interval.Ticks);
+                    var raceRemainingTicksBySinglePoint = raceTicksBySinglePoint - elapsedSinceLastPoint.Ticks;
+                    if (raceRemainingTicksBySinglePoint < 0) raceRemainingTicksBySinglePoint = 0;
+                    var raceEstimatedFromSinglePoint = TimeSpan.FromTicks(raceRemainingTicksBySinglePoint);
+                    txtRaceEstimatedTime.Text = $"预计用时：{FormatTimeSpan(raceEstimatedFromSinglePoint)}";
                     txtCarPointEstimatedTime.Text = "预计用时：--:--:--";
                     return;
                 }
 
                 if (_carPointRunning)
                 {
-                    var pointEstimated = TimeSpan.FromTicks((long)((leftPoint / (double)PointModeSingleLoopPoint) * interval.Ticks));
-                    txtCarPointEstimatedTime.Text = $"预计用时：{FormatTimeSpan(pointEstimated)}";
-                    txtRaceEstimatedTime.Text = "预计用时：--:--:--";
-                    return;
+                    // 使用最近两次点数读取差值来估算点数降至阈值（PointModeSingleLoopPoint）所需时间
+                    if (_previousPoint.HasValue)
+                    {
+                        var delta = _previousPoint.Value - _currentPoint; // positive if points are decreasing
+                        if (delta > 0)
+                        {
+                            var leftToThreshold = _currentPoint - PointModeSingleLoopPoint;
+                            if (leftToThreshold <= 0)
+                            {
+                                txtCarPointEstimatedTime.Text = "预计用时：00:00:00";
+                                txtRaceEstimatedTime.Text = "预计用时：--:--:--";
+                                return;
+                            }
+
+                            // 需要多少个间隔：leftToThreshold / delta
+                            var intervalsNeeded = leftToThreshold / (double)delta;
+                            var carPointTotalRemainingTicks = (long)(intervalsNeeded * interval.Ticks);
+                            var carPointRemainingTicks = carPointTotalRemainingTicks - elapsedSinceLastPoint.Ticks;
+                            if (carPointRemainingTicks < 0) carPointRemainingTicks = 0;
+                            var carPointEstimatedTimeSpan = TimeSpan.FromTicks(carPointRemainingTicks);
+                            txtCarPointEstimatedTime.Text = $"预计用时：{FormatTimeSpan(carPointEstimatedTimeSpan)}";
+                            txtRaceEstimatedTime.Text = "预计用时：--:--:--";
+                            return;
+                        }
+                        else
+                        {
+                            // 未观测到下降，无法估算
+                            txtCarPointEstimatedTime.Text = "预计用时：--:--:--";
+                            txtRaceEstimatedTime.Text = "预计用时：--:--:--";
+                            return;
+                        }
+                    }
+                    else
+                    {
+                        // 无可用的之前点数，无法估算
+                        txtCarPointEstimatedTime.Text = "预计用时：--:--:--";
+                        txtRaceEstimatedTime.Text = "预计用时：--:--:--";
+                        return;
+                    }
                 }
 
                 txtRaceEstimatedTime.Text = "预计用时：--:--:--";
@@ -654,7 +783,7 @@ namespace FH_WPF
         }
         #endregion
 
-        #region Window Events & UI Actions
+        #region 窗口事件与界面操作
         private void Window_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
         {
             if (e.ButtonState == MouseButtonState.Pressed && e.ChangedButton == MouseButton.Left)
@@ -674,6 +803,38 @@ namespace FH_WPF
         private void Button_Click(object sender, RoutedEventArgs e)
         {
             AppendLog("[信息] OBS 按钮点击");
+            try
+            {
+                var dlg = new ObsSettingsWindow(_obsIp, _obsPort, _obsPassword);
+                dlg.Owner = this;
+                var res = dlg.ShowDialog();
+                if (res == true)
+                {
+                    // 保存并连接
+                    _obsIp = dlg.ObsIp;
+                    _obsPort = dlg.ObsPort;
+                    _obsPassword = dlg.ObsPassword;
+                    SaveSettings();
+
+                    // 尝试连接
+                    Task.Run(async () =>
+                    {
+                        try
+                        {
+                            var ok = await ClsObs.ConnectAsync(_obsIp!, _obsPort, _obsPassword ?? string.Empty);
+                            Dispatcher.Invoke(() => AppendLog(ok ? "[信息] OBS 连接成功" : "[信息] OBS 连接失败"));
+                        }
+                        catch (Exception ex)
+                        {
+                            Dispatcher.Invoke(() => AppendLog($"[错误] 连接 OBS 失败: {ex.Message}"));
+                        }
+                    });
+                }
+            }
+            catch (Exception ex)
+            {
+                AppendLog($"[错误] 打开 OBS 设置失败: {ex.Message}");
+            }
         }
 
         private void Button_Click_1(object sender, RoutedEventArgs e)
@@ -684,27 +845,6 @@ namespace FH_WPF
         private void btnOCRTest_Click(object sender, RoutedEventArgs e)
         {
             AppendLog("[信息] OCR 测试 按钮点击");
-        }
-
-        private void btnTestGameControl_Click(object sender, RoutedEventArgs e)
-        {
-            UpCarIsAllComplete = false;
-            AppendLog("[信息] 消耗技能点脚本测试 按钮点击");
-            AppendPointLog("[测试] 启动 UpCarPoint 测试");
-
-            try
-            {
-                string factory = txtCarFactory.Text;
-                string type = txtCarType.Text;
-                RunBackground(() => ClsGameControl.UpCarPoint(factory, type, true),
-                    startLog: null,
-                    cancelLog: "[信息] 消耗技能点脚本测试",
-                    errorPrefix: "消耗技能点脚本测试");
-            }
-            catch (Exception ex)
-            {
-                AppendLog("[错误] 消耗技能点脚本测试: " + ex.Message);
-            }
         }
 
         private void btnTestBycar_Click(object sender, RoutedEventArgs e)
@@ -781,7 +921,6 @@ namespace FH_WPF
                 ClsGameControl.UpCarPointBegin -= OnUpCarPointBegin;
                 ClsGameControl.BuyCarCompleted -= OnBuyCarCompleted;
                 ClsGameControl.DetectPoint -= ClsGameControl_DetectPoint;
-                ClsGameControl.SingelCarPointComplete -= ClsGameControl_SingelCarPointComplete;
                 ClsGameControl.AllCarPointComplete -= ClsGameControl_AllCarPointComplete;
 
                 // 确保自动化管理器被关闭并反订阅
@@ -801,6 +940,8 @@ namespace FH_WPF
                 // 取消订阅 OBS 事件
                 try { ClsObs.OnConnected -= OnObsConnected; } catch { }
                 try { ClsObs.OnDisconnected -= OnObsDisconnected; } catch { }
+                // 保存界面可编辑控件内容
+                try { SaveSettings(); } catch { }
             }
             catch (Exception ex)
             {
@@ -809,7 +950,7 @@ namespace FH_WPF
         }
         #endregion
 
-        #region Logging Helpers
+        #region 日志辅助
         private void AppendLog(string message)
         {
             try
@@ -875,7 +1016,7 @@ namespace FH_WPF
         }
         #endregion
 
-        #region Background Runner
+        #region 后台运行器
         /// <summary>
         /// 在后台线程运行指定操作并统一处理取消与异常日志
         /// </summary>

@@ -102,22 +102,103 @@ namespace FH_WPF
             {
                 if (targetTextBox != null)
                 {
-                    targetTextBox.Dispatcher?.BeginInvoke(new Action(() =>
+                    var disp = targetTextBox.Dispatcher;
+                    if (disp != null)
                     {
+                        // 如果当前线程是 UI 线程，直接更新；否则使用同步的 Invoke 保证在返回前完成更新，避免日志丢失
                         try
                         {
-                            if (targetTextBox.Text.Length > 0)
-                                targetTextBox.AppendText(Environment.NewLine + uiLine);
-                            else
-                                targetTextBox.AppendText(uiLine);
+                            if (disp.CheckAccess())
+                            {
+                                if (targetTextBox.Text.Length > 0)
+                                    targetTextBox.AppendText(Environment.NewLine + uiLine);
+                                else
+                                    targetTextBox.AppendText(uiLine);
 
-                            targetTextBox.ScrollToEnd();
+                                targetTextBox.ScrollToEnd();
+                            }
+                            else
+                            {
+                                disp.Invoke(new Action(() =>
+                                {
+                                    try
+                                    {
+                                        if (targetTextBox.Text.Length > 0)
+                                            targetTextBox.AppendText(Environment.NewLine + uiLine);
+                                        else
+                                            targetTextBox.AppendText(uiLine);
+
+                                        targetTextBox.ScrollToEnd();
+                                    }
+                                    catch { }
+                                }), System.Windows.Threading.DispatcherPriority.Input);
+                            }
                         }
-                        catch
+                        catch (Exception)
                         {
-                            // 忽略 UI 更新错误
+                            // 如果更新目标 TextBox 失败，尝试回退写入全局日志
+                            try
+                            {
+                                if (_globalTextBox != null)
+                                {
+                                    var gdisp = _globalTextBox.Dispatcher;
+                                    if (gdisp != null)
+                                    {
+                                        if (gdisp.CheckAccess())
+                                        {
+                                            _globalTextBox.AppendText(Environment.NewLine + uiLine);
+                                            _globalTextBox.ScrollToEnd();
+                                        }
+                                        else
+                                        {
+                                            gdisp.Invoke(new Action(() =>
+                                            {
+                                                try
+                                                {
+                                                    _globalTextBox.AppendText(Environment.NewLine + uiLine);
+                                                    _globalTextBox.ScrollToEnd();
+                                                }
+                                                catch { }
+                                            }), System.Windows.Threading.DispatcherPriority.Input);
+                                        }
+                                    }
+                                }
+                            }
+                            catch { }
                         }
-                    }));
+                    }
+                    else
+                    {
+                        // Dispatcher 不可用时回退到全局日志（如果存在）
+                        try
+                        {
+                            if (_globalTextBox != null)
+                            {
+                                var gdisp = _globalTextBox.Dispatcher;
+                                if (gdisp != null)
+                                {
+                                    if (gdisp.CheckAccess())
+                                    {
+                                        _globalTextBox.AppendText(Environment.NewLine + uiLine);
+                                        _globalTextBox.ScrollToEnd();
+                                    }
+                                    else
+                                    {
+                                        gdisp.Invoke(new Action(() =>
+                                        {
+                                            try
+                                            {
+                                                _globalTextBox.AppendText(Environment.NewLine + uiLine);
+                                                _globalTextBox.ScrollToEnd();
+                                            }
+                                            catch { }
+                                        }), System.Windows.Threading.DispatcherPriority.Input);
+                                    }
+                                }
+                            }
+                        }
+                        catch { }
+                    }
                 }
             }
             catch

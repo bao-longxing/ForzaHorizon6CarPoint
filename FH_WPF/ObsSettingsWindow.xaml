@@ -1,0 +1,31 @@
+<Window x:Class="FH_WPF.ObsSettingsWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="OBS 设置" Height="200" Width="360" WindowStartupLocation="CenterOwner" ResizeMode="NoResize">
+    <Grid Margin="10">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="80"/>
+            <ColumnDefinition Width="*"/>
+        </Grid.ColumnDefinitions>
+
+        <Label Grid.Row="0" Grid.Column="0" VerticalAlignment="Center">IP:</Label>
+        <TextBox x:Name="txtIp" Grid.Row="0" Grid.Column="1" Height="26"/>
+
+        <Label Grid.Row="1" Grid.Column="0" VerticalAlignment="Center">端口:</Label>
+        <TextBox x:Name="txtPort" Grid.Row="1" Grid.Column="1" Height="26"/>
+
+        <Label Grid.Row="2" Grid.Column="0" VerticalAlignment="Center">密码:</Label>
+        <PasswordBox x:Name="txtPassword" Grid.Row="2" Grid.Column="1" Height="26"/>
+
+        <StackPanel Grid.Row="3" Grid.ColumnSpan="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,12,0,0">
+            <Button x:Name="btnConnect" Content="连接" Width="80" Margin="0,0,8,0" Click="btnConnect_Click"/>
+            <Button x:Name="btnCancel" Content="取消" Width="80" Click="btnCancel_Click"/>
+        </StackPanel>
+    </Grid>
+</Window>

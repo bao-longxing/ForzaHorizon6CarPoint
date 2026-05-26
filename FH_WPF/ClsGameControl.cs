@@ -310,6 +310,81 @@ namespace FH_WPF
                 throw new OperationCanceledException("F11 Cancel requested");
             }
         }
+
+        private static void ClickKeyAndWait(Key key, int waitMs, string methodName)
+        {
+            methodName = string.IsNullOrWhiteSpace(methodName) ? "Unknown" : methodName;
+            string message = $"{methodName}: 按下 {GetKeyDisplayName(key)}，等待 {waitMs}ms";
+
+            switch (methodName)
+            {
+                case nameof(DeleteCar):
+                case nameof(UpCarPoint):
+                    ClsLogger.LogPoint(message);
+                    break;
+                case nameof(GotoScriptRace):
+                    ClsLogger.LogScript(message);
+                    break;
+                default:
+                    ClsLogger.Log(message);
+                    break;
+            }
+            // 在执行按键前检查是否已触发取消（使用 Point 日志用于与上层操作一致的记录）
+            CheckCancel(methodName, s => ClsLogger.LogPoint(s));
+            ClsLogicContorl_Ghub.ClickKey(key);
+            Thread.Sleep(waitMs);
+        }
+
+        private static void ClickMouseAndWait(int button, int waitMs, string methodName)
+        {
+            methodName = string.IsNullOrWhiteSpace(methodName) ? "Unknown" : methodName;
+            string message = $"{methodName}: 点击 {GetMouseDisplayName(button)}，等待 {waitMs}ms";
+
+            switch (methodName)
+            {
+                case nameof(DeleteCar):
+                case nameof(UpCarPoint):
+                    ClsLogger.LogPoint(message);
+                    break;
+                case nameof(GotoScriptRace):
+                    ClsLogger.LogScript(message);
+                    break;
+                default:
+                    ClsLogger.Log(message);
+                    break;
+            }
+
+            // 在执行鼠标点击前检查是否已触发取消
+            CheckCancel(methodName, s => ClsLogger.LogPoint(s));
+            ClsLogicContorl_Ghub.ClickMouse(button);
+            Thread.Sleep(waitMs);
+        }
+
+        private static string GetKeyDisplayName(Key key)
+        {
+            return key switch
+            {
+                Key.Escape => "ESC",
+                Key.Enter => "Enter",
+                Key.PageDown => "PageDown",
+                Key.PageUp => "PageUp",
+                Key.Back => "Back",
+                _ => key.ToString()
+            };
+        }
+
+        private static string GetMouseDisplayName(int button)
+        {
+            return button switch
+            {
+                1 => "左键",
+                2 => "中键",
+                3 => "右键",
+                4 => "侧键后",
+                5 => "侧键前",
+                _ => $"鼠标按钮{button}"
+            };
+        }
         #endregion
 
         #region 功能: 高级操作
@@ -345,14 +420,15 @@ namespace FH_WPF
         /// </summary>
         public static void DeleteCar(string manufacturerName, string modelName, string performanceScore, bool IsDebug = false)
         {
+            #region 初始化与参数验证
             RebuildCancelTokenIfNeeded();
-            const int keyHoldMs = 80;
+            bool finished = false;
 
+            // 规范化字符串：去除空格、连字符、下划线并转大写，用于模糊匹配车型名称
             string Normalize(string s)
             {
                 if (string.IsNullOrEmpty(s)) return string.Empty;
-                var t = s.Replace(" ", "").Replace("-", "").Replace("_", "").ToUpperInvariant();
-                return t;
+                return s.Replace(" ", "").Replace("-", "").Replace("_", "").ToUpperInvariant();
             }
 
             if (string.IsNullOrWhiteSpace(manufacturerName) || string.IsNullOrWhiteSpace(modelName))
@@ -360,12 +436,14 @@ namespace FH_WPF
                 ClsLogger.Log("DeleteCar: 车厂或车型为空，取消移除车辆操作。");
                 return;
             }
+            #endregion
 
             try
             {
+                #region 进入车库流程
                 CheckCancel("步骤1", s => ClsLogger.LogPoint(s));
 
-                // 步骤2: 检测大世界安娜
+                // 步骤2: 检测大世界安娜，确认当前处于大世界界面
                 CheckCancel("步骤2", s => ClsLogger.LogPoint(s));
                 ClsLogger.LogPoint("步骤2: 检测大世界安娜");
                 if (!TryRecognizeAndClickROI(ClsROI.UIElem.大世界安娜, "安", shouldClick: false, debug: IsDebug))
@@ -374,39 +452,21 @@ namespace FH_WPF
                     return;
                 }
 
-                // 步骤3: 按下 ESC 和 PageDown，进入车库
+                // 步骤3: 按下 ESC 和 PageDown，进入车库主菜单
                 CheckCancel("步骤3", s => ClsLogger.LogPoint(s));
-                ClsLogger.LogPoint("步骤3: 按下 ESC，等待 1000ms");
                 FocusWindowByProcessName("forzahorizon6");
-                ClsLogicContorl_Ghub.ClickKey(Key.Escape);
-                Thread.Sleep(1000);
+                ClickKeyAndWait(Key.Escape, 1000, nameof(DeleteCar));
+                ClickKeyAndWait(Key.PageDown, 500, nameof(DeleteCar));
+                ClickKeyAndWait(Key.PageDown, 500, nameof(DeleteCar));
+                ClickKeyAndWait(Key.Enter, 500, nameof(DeleteCar));
+                ClickKeyAndWait(Key.Enter, 9000, nameof(DeleteCar));
 
-                ClsLogger.LogPoint("步骤4: 按下 PageDown，等待 500ms");
-                ClsLogicContorl_Ghub.ClickKey(Key.PageDown);
-                Thread.Sleep(500);
-
-                ClsLogger.LogPoint("步骤5: 按下 PageDown，等待 500ms");
-                ClsLogicContorl_Ghub.ClickKey(Key.PageDown);
-                Thread.Sleep(500);
-
-                ClsLogger.LogPoint("步骤6: 按下 Enter，等待 500ms");
-                ClsLogicContorl_Ghub.ClickKey(Key.Enter);
-                Thread.Sleep(500);
-
-                ClsLogger.LogPoint("步骤7: 按下 Enter，等待 9000ms");
-                ClsLogicContorl_Ghub.ClickKey(Key.Enter);
-                Thread.Sleep(9000);
-
-                // 步骤8-9: 按 PageDown 两次，进入我的车辆页面
+                // 步骤8-9: 连续按两次 PageDown，导航至"我的车辆"页
                 CheckCancel("步骤8", s => ClsLogger.LogPoint(s));
-                ClsLogger.LogPoint("步骤8: 按下 PageDown，等待 500ms");
-                ClsLogicContorl_Ghub.ClickKey(Key.PageDown);
-                Thread.Sleep(500);
+                ClickKeyAndWait(Key.PageDown, 500, nameof(DeleteCar));
+                ClickKeyAndWait(Key.PageDown, 500, nameof(DeleteCar));
 
-                ClsLogger.LogPoint("步骤9: 按下 PageDown，等待 500ms");
-                ClsLogicContorl_Ghub.ClickKey(Key.PageDown);
-                Thread.Sleep(500);
-
+                // 步骤10: 点击"我的车辆"按钮，进入车库列表
                 CheckCancel("步骤10", s => ClsLogger.LogPoint(s));
                 ClsLogger.LogPoint("DeleteCar 步骤10: 检测车库界面我的车辆按钮");
                 if (!TryRecognizeAndClickROI(ClsROI.UIElem.车库界面我的车辆按钮, "我的车辆", shouldClick: true, debug: IsDebug))
@@ -415,14 +475,11 @@ namespace FH_WPF
                     return;
                 }
 
+                #endregion
+
+                #region 查找并点击目标制造商
+                // 步骤11: 点击"前往制造商"入口按钮
                 Thread.Sleep(1000);
-
-                if (!IsInGarage())
-                {
-                    ClsLogger.LogPoint("DeleteCar: 当前不在车库界面，取消删除操作。");
-                    return;
-                }
-
                 ClsLogger.LogPoint($"DeleteCar 步骤11: 开始点击前往制造商 ({manufacturerName})");
                 CheckCancel("步骤11", s => ClsLogger.LogPoint(s));
                 if (!TryRecognizeAndClickROI(ClsROI.UIElem.前往制造商, "前往制造商", shouldClick: true, debug: IsDebug))
@@ -430,52 +487,27 @@ namespace FH_WPF
                     ClsLogger.LogPoint("DeleteCar: 未能找到或点击'前往制造商'");
                     return;
                 }
-
                 ClsLogger.LogPoint("DeleteCar 步骤11: 已点击前往制造商");
 
+                // 步骤12: 最多尝试两次查找目标制造商（第一次失败则 PageUp 后重试）
                 ClsLogger.LogPoint($"DeleteCar 步骤12: 开始查找并点击制造商 '{manufacturerName}'");
                 CheckCancel("步骤12", s => ClsLogger.LogPoint(s));
                 bool clickedManufacturer = false;
                 for (int attempt = 0; attempt < 2; attempt++)
                 {
-                    if (!TryGetObsScreenshotMat(out Mat manuMat))
+                    if (TryRecognizeAndClickROI(ClsROI.UIElem.整页, manufacturerName, shouldClick: true, debug: IsDebug))
                     {
-                        ClsLogger.LogPoint("DeleteCar: 获取制造商界面截图失败。");
-                        return;
-                    }
-
-                    using (manuMat)
-                    {
-                        DebugShow(manuMat, $"DeleteCar Step5-7 Original (attempt {attempt + 1})", IsDebug);
-                        if (!TryEncodeMatAsPng(manuMat, out byte[] manuBytes))
-                        {
-                            ClsLogger.LogPoint("DeleteCar: 制造商界面截图编码失败。");
-                            return;
-                        }
-
-                        var manuOcr = ClsOCR.RecognizeFromBytes(manuBytes);
-                        var manufacturerRegion = manuOcr?.Regions?.FirstOrDefault(p =>
-                            (p.Text ?? string.Empty).IndexOf(manufacturerName ?? string.Empty, StringComparison.OrdinalIgnoreCase) >= 0);
-
-                        if (manufacturerRegion != null && manufacturerRegion?.Score > 0)
-                        {
-                            if (!TryClickImagePoint(manuMat, manufacturerRegion.Value.Rect.Center.X, manufacturerRegion.Value.Rect.Center.Y, $"点击{manufacturerName}"))
-                            {
-                                return;
-                            }
-
-                            ClsLogger.LogPoint($"DeleteCar 步骤5-7: 已点击{manufacturerName}");
-                            clickedManufacturer = true;
-                            break;
-                        }
+                        ClsLogger.LogPoint($"DeleteCar 步骤5-7: 已点击{manufacturerName}");
+                        clickedManufacturer = true;
+                        break;
                     }
 
                     if (attempt == 0)
                     {
+                        // 第一次未找到，PageUp 后再试一次
                         ClsLogger.LogPoint($"DeleteCar 步骤13: 未找到{manufacturerName}，执行 PageUp 后重试");
                         FocusWindowByProcessName("forzahorizon6");
-                        ClsLogicContorl_Ghub.ClickKey(Key.PageUp);
-                        Thread.Sleep(500);
+                        ClickKeyAndWait(Key.PageUp, 500, nameof(DeleteCar));
                     }
                 }
 
@@ -486,284 +518,207 @@ namespace FH_WPF
                 }
 
                 Thread.Sleep(800);
+                #endregion
 
-                ClsLogger.LogPoint($"DeleteCar 步骤14: 开始循环查找并移除车型 '{modelName}' 与非全新标记");
-                int oldTypeCarNum = 0;
-                int deletedCount = 0;
+                #region 循环查找并删除目标车型
+                // 可删除条件：车厂 ✓ + 车型 ✓ + 性能分 ✓ + 非全新 ✓
+                ClsLogger.LogPoint($"DeleteCar: 开始扫描删除 [{manufacturerName} / {modelName} / 性能分:{performanceScore} / 非全新]");
+                int deletedCount = 0;   // 累计已删除车辆数
 
+                // 步骤1~7循环：品牌校验 -> 全页OCR -> 定位车型 -> 重设车辆框ROI -> 候选筛选 -> 点击/翻页
                 while (true)
                 {
-                    bool clickedOldCar = false;
-                    for (int round = 0; round < 20 && !clickedOldCar; round++)
-                    {
-                        CheckCancel("步骤15", s => ClsLogger.LogPoint(s));
-                        if (!TryGetObsScreenshotMat(out Mat carFactoryMat))
-                        {
-                            ClsLogger.LogPoint("DeleteCar: 获取车厂界面截图失败。");
-                            return;
-                        }
+                    CheckCancel("DeleteCar-扫描循环", s => ClsLogger.LogPoint(s));
 
-                        using (carFactoryMat)
-                        {
-                            DebugShow(carFactoryMat, $"DeleteCar Step8-11 Original (round {round + 1})", IsDebug);
-                            if (!TryEncodeMatAsPng(carFactoryMat, out byte[] factoryBytes))
-                            {
-                                ClsLogger.LogPoint("DeleteCar: 车厂界面截图编码失败。");
-                                return;
-                            }
-
-                            var factoryOcr = ClsOCR.RecognizeFromBytes(factoryBytes);
-                            var normalizedModel = Normalize(modelName ?? string.Empty);
-
-                            OpenCvSharp.Rect excludeScaledRect = new OpenCvSharp.Rect();
-                            if (ClsROI.TargetRects.TryGetValue(ClsROI.UIElem.车库中当前车型, out OpenCvSharp.Rect excludeBaseRect))
-                            {
-                                excludeScaledRect = ClsROI.ScaleFromBase(excludeBaseRect, new OpenCvSharp.Size(ClsObs.ScreenshotWidth, ClsObs.ScreenshotHeight), new OpenCvSharp.Size(carFactoryMat.Width, carFactoryMat.Height));
-                            }
-
-                            if (!ClsROI.TargetRects.TryGetValue(ClsROI.UIElem.车辆框, out OpenCvSharp.Rect carFrameBaseRect))
-                            {
-                                ClsLogger.LogPoint("DeleteCar: ROI 中未配置 '车辆框'。");
-                                return;
-                            }
-
-                            var baseResolution = new OpenCvSharp.Size(ClsObs.ScreenshotWidth, ClsObs.ScreenshotHeight);
-                            var targetSize = new OpenCvSharp.Size(carFactoryMat.Width, carFactoryMat.Height);
-                            OpenCvSharp.Rect carFrameScaled = ClsROI.ScaleFromBase(carFrameBaseRect, baseResolution, targetSize);
-
-                            if (!TryCreateSafeCropRect(carFactoryMat, carFrameScaled, out OpenCvSharp.Rect safeCarFrame))
-                            {
-                                ClsLogger.LogPoint("DeleteCar: '车辆框' 缩放后无效。");
-                                return;
-                            }
-
-                            var modelRegions = (factoryOcr?.Regions ?? Array.Empty<PaddleOcrResultRegion>())
-                                .Where(p =>
-                                {
-                                    var t = Normalize(p.Text ?? string.Empty);
-                                    if (string.IsNullOrEmpty(normalizedModel) || !t.Contains(normalizedModel)) return false;
-                                    if (p.Score <= 0) return false;
-
-                                    if (excludeScaledRect.Width > 0 && excludeScaledRect.Height > 0)
-                                    {
-                                        var cx = (int)Math.Round(p.Rect.Center.X);
-                                        var cy = (int)Math.Round(p.Rect.Center.Y);
-                                        if (cx >= excludeScaledRect.X && cy >= excludeScaledRect.Y && cx < excludeScaledRect.X + excludeScaledRect.Width && cy < excludeScaledRect.Y + excludeScaledRect.Height)
-                                            return false;
-                                    }
-
-                                    return true;
-                                })
-                                // 优先按 X 坐标升序（最靠左），再按 Y 坐标升序
-                                .OrderBy(p => p.Rect.Center.X)
-                                .ThenBy(p => p.Rect.Center.Y)
-                                .ToList();
-
-                            if (modelRegions.Count == 0)
-                            {
-                                ClsLogger.LogPoint($"DeleteCar 步骤16: 未找到车型 '{modelName}'（第{round + 1}轮）。");
-                            }
-                            else
-                            {
-                                oldTypeCarNum = modelRegions.Count;
-                            }
-
-                            for (int i = 0; i < modelRegions.Count; i++)
-                            {
-                                var modelRegion = modelRegions[i];
-                                RotatedRect modelRect = modelRegion.Rect;
-                                int modelCenterX = (int)Math.Round(modelRect.Center.X);
-                                int modelCenterY = (int)Math.Round(modelRect.Center.Y);
-
-                                int expW = safeCarFrame.Width;
-                                int expH = safeCarFrame.Height;
-
-                                int expX = modelCenterX - expW / 2;
-                                int marginFromTop = (int)Math.Round(expH * 0.06);
-                                int expY = modelCenterY - marginFromTop;
-
-                                if (expX < 0) expX = 0;
-                                if (expY < 0) expY = 0;
-                                if (expX + expW > carFactoryMat.Width) expX = Math.Max(0, carFactoryMat.Width - expW);
-                                if (expY + expH > carFactoryMat.Height) expY = Math.Max(0, carFactoryMat.Height - expH);
-
-                                if (expW <= 0 || expH <= 0)
-                                {
-                                    expX = safeCarFrame.X;
-                                    expY = safeCarFrame.Y;
-                                    expW = safeCarFrame.Width;
-                                    expH = safeCarFrame.Height;
-                                }
-
-                                OpenCvSharp.Rect expandedRect = new OpenCvSharp.Rect(expX, expY, expW, expH);
-
-                                if (IsDebug)
-                                {
-                                    try
-                                    {
-                                        using var mark = carFactoryMat.Clone();
-                                        var mc = new OpenCvSharp.Point(modelCenterX, modelCenterY);
-                                        Cv2.Circle(mark, mc, 8, new Scalar(0, 0, 255), 3);
-                                        Cv2.Rectangle(mark, new OpenCvSharp.Point(expandedRect.X, expandedRect.Y), new OpenCvSharp.Point(expandedRect.X + expandedRect.Width, expandedRect.Y + expandedRect.Height), new Scalar(255, 0, 0), 2);
-                                        Cv2.PutText(mark, $"DeleteCandidate {i + 1}", new OpenCvSharp.Point(mc.X + 10, mc.Y), HersheyFonts.HersheySimplex, 0.6, new Scalar(0, 255, 0), 2);
-                                        SafeImShow($"DeleteCar Step8-11 Marked ({i + 1})", mark, autoDestroy: true);
-                                    }
-                                    catch { }
-                                }
-
-                                if (!TryCreateSafeCropRect(carFactoryMat, expandedRect, out OpenCvSharp.Rect safeExpandedRect))
-                                {
-                                    ClsLogger.LogPoint($"DeleteCar 步骤17: 第{i + 1}个车型候选扩展 ROI 无效，跳过。");
-                                    continue;
-                                }
-
-                                using Mat expandedCropped = new Mat(carFactoryMat, safeExpandedRect);
-                                DebugShow(expandedCropped, $"DeleteCar Step9 Expanded ROI Crop ({i + 1})", IsDebug);
-                                if (!TryEncodeMatAsPng(expandedCropped, out byte[] expandedBytes))
-                                {
-                                    ClsLogger.LogPoint("DeleteCar: 扩展 ROI 编码失败。");
-                                    return;
-                                }
-
-                                var expandedOcr = ClsOCR.RecognizeFromBytes(expandedBytes);
-                                var brandNewRegion = expandedOcr?.Regions?.FirstOrDefault(p => (p.Text ?? string.Empty).Contains("全新") && p.Score > 0);
-                                // 检测是否包含性能分（如果未提供 performanceScore，则视为不检查）
-                                bool containsPerformanceScore = true;
-                                if (!string.IsNullOrWhiteSpace(performanceScore))
-                                {
-                                    var scoreRegion = expandedOcr?.Regions?.FirstOrDefault(p => (p.Text ?? string.Empty).IndexOf(performanceScore ?? string.Empty, StringComparison.OrdinalIgnoreCase) >= 0 && p.Score > 0);
-                                    containsPerformanceScore = scoreRegion != null && scoreRegion.Value.Score > 0;
-                                }
-
-                                if (brandNewRegion != null && brandNewRegion.Value.Score > 0)
-                                {
-                                    ClsLogger.LogPoint($"DeleteCar 步骤18: 第{i + 1}个匹配车型扩展 ROI 内检测到 '全新'，跳过。");
-                                    continue;
-                                }
-
-                                if (!containsPerformanceScore)
-                                {
-                                    ClsLogger.LogPoint($"DeleteCar 步骤19: 第{i + 1}个匹配车型未包含性能分 {performanceScore}，跳过。");
-                                    continue;
-                                }
-
-                                ClsLogger.LogPoint($"DeleteCar 步骤20: 第{i + 1}个匹配车型为非全新且包含性能分 {performanceScore}，将进入后续操作。");
-                                DebugShow(expandedCropped, $"DeleteCar Step10 Show - {modelName} NonBrandNew WithScore ({i + 1})", IsDebug);
-
-                                CheckCancel("步骤21", s => ClsLogger.LogPoint(s));
-                                if (!TryClickImagePoint(carFactoryMat, modelCenterX, modelCenterY, "点击非全新车辆"))
-                                {
-                                    return;
-                                }
-                                Thread.Sleep(500);
-
-                                bool removed = false;
-                                if (TryRecognizeAndClickROI(ClsROI.UIElem.从车库移除车辆, "从车库移除车辆", shouldClick: true, debug: IsDebug))
-                                {
-                                    Thread.Sleep(500);
-                                    ClsLogger.LogPoint("DeleteCar 步骤11: 检测到并点击 '从车库移除车辆'。");
-                                    Thread.Sleep(500);
-                                    ClsLogicContorl_Ghub.ClickKey(Key.Down);
-                                    Thread.Sleep(100);
-                                    ClsLogicContorl_Ghub.ClickKey(Key.Enter);
-                                    Thread.Sleep(100);
-                                }
-                                else
-                                {
-                                    ClsLogicContorl_Ghub.ClickKey(Key.Enter);
-                                    Thread.Sleep(500);
-                                    ClsLogicContorl_Ghub.ClickKey(Key.Down);
-                                    Thread.Sleep(100);
-                                    ClsLogicContorl_Ghub.ClickKey(Key.Down);
-                                    Thread.Sleep(100);
-                                    ClsLogicContorl_Ghub.ClickKey(Key.Down);
-                                    Thread.Sleep(100);
-                                    ClsLogicContorl_Ghub.ClickKey(Key.Down);
-                                    Thread.Sleep(100);
-                                    ClsLogicContorl_Ghub.ClickKey(Key.Down);
-                                    Thread.Sleep(100);
-                                    ClsLogicContorl_Ghub.ClickKey(Key.Enter);
-                                    Thread.Sleep(500);
-                                    ClsLogicContorl_Ghub.ClickKey(Key.Down);
-                                    Thread.Sleep(100);
-                                    ClsLogicContorl_Ghub.ClickKey(Key.Enter);
-                                    Thread.Sleep(100);
-                                }
-
-                                if (removed)
-                                {
-                                    ClsLogger.LogPoint($"DeleteCar 步骤22: 已删除{manufacturerName}:{modelName}");
-                                    clickedOldCar = true;
-                                    break;
-                                }
-
-                                ClsLogger.LogPoint($"DeleteCar 步骤22: 已删除{manufacturerName}:{modelName}");
-
-                                clickedOldCar = true;
-                                break;
-                            }
-                        }
-
-                        if (clickedOldCar)
-                        {
-                            // 已删除一辆后继续本 while 循环，外层 while 将根据品牌/页面状态决定是否继续
-                            break;
-                        }
-
-                        ClsLogger.LogPoint($"DeleteCar 步骤23: 所有匹配车型均为'全新'或未命中，按下→并检查车库品牌是否仍为 {manufacturerName}。");
-                        FocusWindowByProcessName("forzahorizon6");
-
-                        int clickKeyCount = oldTypeCarNum / 3 - 1 >= 1 ? oldTypeCarNum / 3 - 1 : 1;
-                        for (int i = 0; i < clickKeyCount; i++)
-                        {
-                            ClsLogicContorl_Ghub.ClickKey(Key.Right);
-                            Thread.Sleep(500);
-                        }
-
-                        if (!TryRecognizeAndClickROI(ClsROI.UIElem.车库品牌, manufacturerName, shouldClick: false, debug: IsDebug))
-                        {
-                            ClsLogger.LogPoint($"DeleteCar 步骤24: 车库品牌不再包含 {manufacturerName}，已无更多非全新车型，流程结束。");
-                            ClsLogicContorl_Ghub.ClickKey(Key.Escape);
-                            Thread.Sleep(1000);
-                            ClsLogicContorl_Ghub.ClickKey(Key.Escape);
-                            Thread.Sleep(9000);
-                            //发送删除完成
-                            System.Windows.Application.Current.Dispatcher.Invoke(() =>
-                            {
-                                DeleteCarCompleted?.Invoke(null, EventArgs.Empty);
-                            });
-                            return;
-                        }
-                        ClsLogger.LogPoint($"DeleteCar 步骤25: 车库品牌仍为 {manufacturerName}，进入第{round + 2}轮检测车型与非全新标记。");
-                    }
-
-                    if (!clickedOldCar)
-                    {
-                        ClsLogger.LogPoint("DeleteCar 步骤26: 本次轮次未找到可移除的非全新车辆，停止循环删除。");
-                        break; // exit while loop
-                    }
-
-                    // 已成功选中并执行移除进入后续（已在上面执行点击进入与按键）
-                    deletedCount++;
-                    ClsLogger.LogPoint($"DeleteCar: 已删除一辆符合条件的车辆，累计已删除 {deletedCount} 辆。");
-
-                    Thread.Sleep(1000);
-
-                    // 检查品牌是否仍为目标品牌，若不是则结束循环
-                    FocusWindowByProcessName("forzahorizon6");
+                    // 1. ClsROI[车库品牌]包含品牌；不包含则结束
                     if (!TryRecognizeAndClickROI(ClsROI.UIElem.车库品牌, manufacturerName, shouldClick: false, debug: IsDebug))
                     {
-                        ClsLogger.LogPoint($"DeleteCar: 车库品牌已变更或不再包含 {manufacturerName}，循环删除结束。已删除 {deletedCount} 辆。");
-                        Thread.Sleep(500);
-                        ClsLogicContorl_Ghub.ClickKey(Key.Escape);
-                        Thread.Sleep(1000);
-                        ClsLogicContorl_Ghub.ClickKey(Key.Escape);
+                        ClsLogger.LogPoint($"DeleteCar: 车库品牌不再包含 [{manufacturerName}]，结束扫描。累计删除 {deletedCount} 辆。");
                         break;
                     }
 
-                    // 否则继续下一轮循环，尝试删除下一辆匹配的车辆
-                    ClsLogger.LogPoint($"DeleteCar: 车库品牌仍为 {manufacturerName}，继续下一轮删除。");
+                    // 2. OCR整个页面
+                    if (!TryGetObsScreenshotMat(out Mat carFactoryMat))
+                    {
+                        ClsLogger.LogPoint("DeleteCar: 获取车厂界面截图失败。");
+                        return;
+                    }
+
+                    using (carFactoryMat)
+                    {
+                        if (!TryRecognizeAndClickROI(
+                            carFactoryMat,
+                            new OpenCvSharp.Rect(0, 0, carFactoryMat.Width, carFactoryMat.Height),
+                            out var factoryRegions,
+                            searchText: null,
+                            shouldClick: false,
+                            debug: IsDebug,
+                            debugTitle: "DeleteCar 全页OCR"))
+                        {
+                            ClsLogger.LogPoint("DeleteCar: 全页OCR失败。");
+                            return;
+                        }
+
+                        string normalizedModel = Normalize(modelName ?? string.Empty);
+
+                        if (!ClsROI.TargetRects.TryGetValue(ClsROI.UIElem.车辆框, out OpenCvSharp.Rect carFrameBaseRect))
+                        {
+                            ClsLogger.LogPoint("DeleteCar: ROI 中未配置 '车辆框'。");
+                            return;
+                        }
+
+                        var baseResolution = new OpenCvSharp.Size(ClsObs.ScreenshotWidth, ClsObs.ScreenshotHeight);
+                        var targetSize = new OpenCvSharp.Size(carFactoryMat.Width, carFactoryMat.Height);
+                        OpenCvSharp.Rect carFrameScaled = ClsROI.ScaleFromBase(carFrameBaseRect, baseResolution, targetSize);
+
+                        if (!TryCreateSafeCropRect(carFactoryMat, carFrameScaled, out OpenCvSharp.Rect safeCarFrame))
+                        {
+                            ClsLogger.LogPoint("DeleteCar: '车辆框' 缩放后无效。");
+                            return;
+                        }
+
+                        // 3. 定位所有包含型号信息的 region
+                        var modelRegions = (factoryRegions ?? new List<PaddleOcrResultRegion>())
+                            .Where(p =>
+                            {
+                                string normalizedText = Normalize(p.Text ?? string.Empty);
+                                if (string.IsNullOrEmpty(normalizedModel) || !normalizedText.Contains(normalizedModel)) return false;
+                                return p.Score > 0;
+                            })
+                            .OrderBy(p => p.Rect.Center.X)
+                            .ThenBy(p => p.Rect.Center.Y)
+                            .ToList();
+
+                        var matchedCandidates = new List<(PaddleOcrResultRegion ModelRegion, OpenCvSharp.Rect ResetRoiRect)>();
+
+                        foreach (var modelRegion in modelRegions)
+                        {
+                            int modelCenterX = (int)Math.Round(modelRegion.Rect.Center.X);
+                            int modelCenterY = (int)Math.Round(modelRegion.Rect.Center.Y);
+
+                            // 4. 使用 region 顶部重设 ClsROI[车辆框] 顶部，X 中心重设为 region 的 X 中心
+                            var modelBoundingRect = modelRegion.Rect.BoundingRect();
+                            int roiWidth = safeCarFrame.Width;
+                            int roiHeight = safeCarFrame.Height;
+                            int roiX = modelCenterX - roiWidth / 2;
+                            int roiY = modelBoundingRect.Top;
+
+                            if (roiX < 0) roiX = 0;
+                            if (roiY < 0) roiY = 0;
+                            if (roiX + roiWidth > carFactoryMat.Width) roiX = Math.Max(0, carFactoryMat.Width - roiWidth);
+                            if (roiY + roiHeight > carFactoryMat.Height) roiY = Math.Max(0, carFactoryMat.Height - roiHeight);
+
+                            if (roiWidth <= 0 || roiHeight <= 0)
+                            {
+                                roiX = safeCarFrame.X;
+                                roiY = safeCarFrame.Y;
+                                roiWidth = safeCarFrame.Width;
+                                roiHeight = safeCarFrame.Height;
+                            }
+
+                            OpenCvSharp.Rect resetRoiRect = new OpenCvSharp.Rect(roiX, roiY, roiWidth, roiHeight);
+                            if (!TryCreateSafeCropRect(carFactoryMat, resetRoiRect, out OpenCvSharp.Rect safeResetRoiRect))
+                            {
+                                continue;
+                            }
+
+                            // 5. 使用重设ROI进行 OCR，判断是否包含“全新”且包含性能分
+                            if (!TryRecognizeAndClickROI(
+                                carFactoryMat,
+                                safeResetRoiRect,
+                                out var resetRoiRegions,
+                                searchText: null,
+                                shouldClick: false,
+                                debug: IsDebug,
+                                debugTitle: $"DeleteCar 重设ROI - {modelName}"))
+                            {
+                                continue;
+                            }
+
+                            bool containsBrandNew = resetRoiRegions.Any(
+                                p => (p.Text ?? string.Empty).Contains("全新") && p.Score > 0);
+
+                            bool containsPerformanceScore = true;
+                            if (!string.IsNullOrWhiteSpace(performanceScore))
+                            {
+                                containsPerformanceScore = resetRoiRegions.Any(
+                                    p => (p.Text ?? string.Empty).IndexOf(performanceScore, StringComparison.OrdinalIgnoreCase) >= 0
+                                         && p.Score > 0);
+                            }
+
+                            if (!containsBrandNew && containsPerformanceScore)
+                            {
+                                matchedCandidates.Add((modelRegion, safeResetRoiRect));
+                            }
+                        }
+
+
+                        // 6. 有符合则点击 X 最小、Y 最小；没符合则 Right 后回到步骤1
+                        if (matchedCandidates.Count > 0)
+                        {
+                            var targetCandidate = matchedCandidates
+                                .OrderBy(c => c.ModelRegion.Rect.Center.X)
+                                .ThenBy(c => c.ModelRegion.Rect.Center.Y)
+                                .First();
+
+                            int clickX = (int)Math.Round(targetCandidate.ModelRegion.Rect.Center.X);
+                            int clickY = (int)Math.Round(targetCandidate.ModelRegion.Rect.Center.Y);
+
+                            ClsLogger.LogPoint($"DeleteCar: 找到可删除车辆 [{manufacturerName} / {modelName} / {performanceScore} / 非全新]，开始删除。");
+                            CheckCancel("DeleteCar-执行删除", s => ClsLogger.LogPoint(s));
+                            if (!TryClickImagePoint(carFactoryMat, clickX, clickY, "DeleteCar 点击匹配车辆"))
+                                return;
+                            Thread.Sleep(500);
+
+                            if (TryRecognizeAndClickROI(ClsROI.UIElem.从车库移除车辆, "从车库移除车辆", shouldClick: true, debug: IsDebug))
+                            {
+                                Thread.Sleep(500);
+                                ClsLogger.LogPoint("DeleteCar: 通过 OCR 点击'从车库移除车辆'。");
+                                Thread.Sleep(500);
+                                ClickKeyAndWait(Key.Down, 100, nameof(DeleteCar));
+                                ClickKeyAndWait(Key.Enter, 1000, nameof(DeleteCar));
+                            }
+                            else
+                            {
+                                ClickKeyAndWait(Key.Enter, 500, nameof(DeleteCar));
+                                for (int d = 0; d < 5; d++)
+                                    ClickKeyAndWait(Key.Down, 100, nameof(DeleteCar));
+                                ClickKeyAndWait(Key.Enter, 500, nameof(DeleteCar));
+                                ClickKeyAndWait(Key.Down, 100, nameof(DeleteCar));
+                                ClickKeyAndWait(Key.Enter, 1000, nameof(DeleteCar));
+                            }
+
+                            deletedCount++;
+                            ClsLogger.LogPoint($"DeleteCar: 已删除 [{manufacturerName} / {modelName}]，累计删除 {deletedCount} 辆。");
+                            Thread.Sleep(1000);
+                            continue;
+                        }
+
+                        // 7. Right 次数参考已有方法（最小1次）
+                        int clickRightCount = modelRegions.Count / 3 - 1 >= 1 ? modelRegions.Count / 3 - 1 : 1;
+                        ClsLogger.LogPoint($"DeleteCar: 当前页无符合[全新+性能分]车辆，向右翻 {clickRightCount} 页继续扫描。");
+                        FocusWindowByProcessName("forzahorizon6");
+                        for (int i = 0; i < clickRightCount; i++)
+                        {
+                            ClickKeyAndWait(Key.Right, 500, nameof(DeleteCar));
+                        }
+                        Thread.Sleep(1000);
+                    }
                 }
+                // end 扫描循环
+
+                // 外层循环因"找不到可删除车辆"正常退出时，按 ESC 退出车库并触发完成事件
+                if (!finished)
+                {
+                    ClickKeyAndWait(Key.Escape, 1000, nameof(DeleteCar));
+                    ClickKeyAndWait(Key.Escape, 9000, nameof(DeleteCar));
+                    System.Windows.Application.Current.Dispatcher.BeginInvoke(() =>
+                    {
+                        DeleteCarCompleted?.Invoke(null, EventArgs.Empty);
+                    });
+                    finished = true;
+                }
+                #endregion
             }
             catch (OperationCanceledException)
             {
@@ -775,25 +730,38 @@ namespace FH_WPF
                 ClsLogger.LogPoint($"DeleteCar: 发生错误 - {ex.Message}");
                 Debug.WriteLine($"DeleteCar: Exception - {ex}");
             }
+            finally
+            {
+                if (!finished)
+                {
+                    try
+                    {
+                        System.Windows.Application.Current.Dispatcher.BeginInvoke(() => { DeleteCarCompleted?.Invoke(null, EventArgs.Empty); });
+                    }
+                    catch { }
+                }
+            }
         }
 
         public static void UpCarPoint(string manufacturerName, string modelName, bool IsDebug = false)
         {
-            //重设取消标志
+            #region 初始化
+            //重设取消标志(重置热键)
             RebuildCancelTokenIfNeeded();
             //触发开始(计时)
-            System.Windows.Application.Current.Dispatcher.Invoke(() => { UpCarPointBegin.Invoke(null, EventArgs.Empty); });
-
-            const int keyHoldMs = 80;
+            System.Windows.Application.Current.Dispatcher.BeginInvoke(() => { UpCarPointBegin?.Invoke(null, EventArgs.Empty); });
+            bool finished = false;
             string Normalize(string s)
             {
                 if (string.IsNullOrEmpty(s)) return string.Empty;
                 var t = s.Replace(" ", "").Replace("-", "").Replace("_", "").ToUpperInvariant();
                 return t;
             }
+            #endregion
 
             try
             {
+                #region 预检查与进入车库
                 CheckCancel("步骤1", s => ClsLogger.LogPoint(s));
                 // 步骤2: 检测大世界安娜
                 CheckCancel("步骤2", s => ClsLogger.LogPoint(s));
@@ -806,40 +774,25 @@ namespace FH_WPF
 
                 // 步骤3: 按下 ESC 和 PageDown，进入车库
                 CheckCancel("步骤3", s => ClsLogger.LogPoint(s));
-                ClsLogger.LogPoint("步骤3: 按下 ESC，等待 1000ms");
                 FocusWindowByProcessName("forzahorizon6");
-                ClsLogicContorl_Ghub.ClickKey(Key.Escape);
-                Thread.Sleep(1000);
-                ClsLogger.LogPoint("步骤4: 按下 PageDown，等待 500ms");
-                ClsLogicContorl_Ghub.ClickKey(Key.PageDown);
-                Thread.Sleep(500);
-
-                ClsLogger.LogPoint("步骤5: 按下 PageDown，等待 500ms");
-                ClsLogicContorl_Ghub.ClickKey(Key.PageDown);
-                Thread.Sleep(500);
-
-                ClsLogger.LogPoint("步骤6: 按下 Enter，等待 500ms");
-                ClsLogicContorl_Ghub.ClickKey(Key.Enter);
-                Thread.Sleep(500);
-
-                ClsLogger.LogPoint("步骤7: 按下 Enter，等待 9000ms");
-                ClsLogicContorl_Ghub.ClickKey(Key.Enter);
-                Thread.Sleep(9000);
+                ClickKeyAndWait(Key.Escape, 1000, nameof(UpCarPoint));
+                ClickKeyAndWait(Key.PageDown, 500, nameof(UpCarPoint));
+                ClickKeyAndWait(Key.PageDown, 500, nameof(UpCarPoint));
+                ClickKeyAndWait(Key.Enter, 500, nameof(UpCarPoint));
+                ClickKeyAndWait(Key.Enter, 9000, nameof(UpCarPoint));
 
                 // 步骤8: 按 PageDown 两次，进入我的车辆页面
                 CheckCancel("步骤8", s => ClsLogger.LogPoint(s));
-                ClsLogger.LogPoint("步骤8: 按下 PageDown，等待 500ms");
-                ClsLogicContorl_Ghub.ClickKey(Key.PageDown);
-                Thread.Sleep(500);
+                ClickKeyAndWait(Key.PageDown, 500, nameof(UpCarPoint));
+                ClickKeyAndWait(Key.PageDown, 1000, nameof(UpCarPoint));
+                #endregion
 
-                ClsLogger.LogPoint("步骤9: 按下 PageDown，等待 500ms");
-                ClsLogicContorl_Ghub.ClickKey(Key.PageDown);
-                Thread.Sleep(500);
-
+                #region 主循环: 查找车辆并升级
                 // 主循环：当点数 >= 30 时循环升级同一辆车
                 while (true)
                 {
                     CheckCancel("循环开始", s => ClsLogger.LogPoint(s));
+                    #region 我的车辆与车库检测
                     // 步骤1: 检测车库界面我的车辆按钮
                     CheckCancel("步骤10", s => ClsLogger.LogPoint(s));
                     ClsLogger.LogPoint("步骤10: 检测车库界面我的车辆按钮");
@@ -849,18 +802,10 @@ namespace FH_WPF
                         ClsLogger.LogPoint("UpCarPoint: 当前界面不在住宅->车辆界面。");
                         return;
                     }
+                    #endregion
 
+                    #region 前往制造商并选择品牌
                     Thread.Sleep(1000);
-
-                    // 判断当前界面是否在车库，如果不在车库则不执行升级操作
-                    if (!IsInGarage())
-                    {
-                        ClsLogger.LogPoint("UpCarPoint: 当前不在车库界面，取消升级操作。");
-                        return;
-                    }
-
-
-
                     ClsLogger.LogPoint($"步骤11: 开始点击前往制造商 ({manufacturerName})");
                     // 步骤11: 点击前往制造商前检查取消
                     CheckCancel("步骤11", s => ClsLogger.LogPoint(s));
@@ -874,65 +819,26 @@ namespace FH_WPF
 
                     ClsLogger.LogPoint("步骤11: 已点击前往制造商");
 
-                    // 5~7: 点击“斯巴鲁”，找不到则 PageUp 后重试一次
+                    // 5~7: 点击制造商（尝试使用通用 ROI OCR 方法以减少重复代码）
                     ClsLogger.LogPoint($"步骤12: 开始查找并点击制造商 '{manufacturerName}'");
                     // 步骤12: 查找并点击制造商前检查取消
                     CheckCancel("步骤12", s => ClsLogger.LogPoint(s));
                     bool clickedSubaru = false;
                     for (int attempt = 0; attempt < 2; attempt++)
                     {
-                        if (!TryGetObsScreenshotMat(out Mat manuMat))
+                        // 优先使用 TryRecognizeAndClickROI 在预定义的品牌 ROI 中搜索并点击
+                        if (TryRecognizeAndClickROI(ClsROI.UIElem.整页, manufacturerName, shouldClick: true, debug: IsDebug))
                         {
-                            ClsLogger.LogPoint("UpCarPoint: 获取制造商界面截图失败。");
-                            return;
-                        }
-
-                        using (manuMat)
-                        {
-                            DebugShow(manuMat, $"Step4-6 Original (attempt {attempt + 1})", IsDebug);
-                            if (!TryEncodeMatAsPng(manuMat, out byte[] manuBytes))
-                            {
-                                ClsLogger.LogPoint("UpCarPoint: 制造商界面截图编码失败。");
-                                return;
-                            }
-
-                            var manuOcr = ClsOCR.RecognizeFromBytes(manuBytes);
-                            var subaruRegion = manuOcr?.Regions?.FirstOrDefault(p =>
-                                (p.Text ?? string.Empty).IndexOf(manufacturerName ?? string.Empty, StringComparison.OrdinalIgnoreCase) >= 0);
-
-                            if (subaruRegion != null && subaruRegion?.Score > 0)
-                            {
-                                // mark and show the found region when debugging
-                                try
-                                {
-                                    if (IsDebug)
-                                    {
-                                        using var mcopy = manuMat.Clone();
-                                        var c = new OpenCvSharp.Point((int)subaruRegion.Value.Rect.Center.X, (int)subaruRegion.Value.Rect.Center.Y);
-                                        Cv2.Circle(mcopy, c, 10, new Scalar(0, 0, 255), 3);
-                                        Cv2.PutText(mcopy, "Subaru", new OpenCvSharp.Point(c.X + 12, c.Y), HersheyFonts.HersheySimplex, 0.8, new Scalar(0, 255, 0), 2);
-                                        SafeImShow("Step4-6 Marked - Subaru", mcopy, autoDestroy: true);
-                                    }
-                                }
-                                catch { }
-
-                                if (!TryClickImagePoint(manuMat, subaruRegion.Value.Rect.Center.X, subaruRegion.Value.Rect.Center.Y, $"点击{manufacturerName}"))
-                                {
-                                    return;
-                                }
-
-                                ClsLogger.LogPoint($"步骤5-7: 已点击{manufacturerName}");
-                                clickedSubaru = true;
-                                break;
-                            }
+                            ClsLogger.LogPoint($"步骤5-7: 已点击{manufacturerName}");
+                            clickedSubaru = true;
+                            break;
                         }
 
                         if (attempt == 0)
                         {
                             ClsLogger.LogPoint($"步骤13: 未找到{manufacturerName}，执行 PageUp 后重试");
                             FocusWindowByProcessName("forzahorizon6");
-                            ClsLogicContorl_Ghub.ClickKey(Key.PageUp);
-                            Thread.Sleep(500);
+                            ClickKeyAndWait(Key.PageUp, 500, nameof(UpCarPoint));
                         }
                     }
 
@@ -943,7 +849,9 @@ namespace FH_WPF
                     }
 
                     Thread.Sleep(800);
+                    #endregion
 
+                    #region 查找车型并检测“全新”
                     // 8~11: 查找车型，扩展 ROI，检测“全新”；若未找到则切换并检查品牌后重试
                     ClsLogger.LogPoint($"步骤14: 开始查找车型 '{modelName}' 与全新标记");
                     bool clickedBrandNew = false;
@@ -962,13 +870,19 @@ namespace FH_WPF
                         using (carFactoryMat)
                         {
                             DebugShow(carFactoryMat, $"Step7 Original - Factory (round {round + 1})", IsDebug);
-                            if (!TryEncodeMatAsPng(carFactoryMat, out byte[] factoryBytes))
+                            if (!TryRecognizeAndClickROI(
+                                carFactoryMat,
+                                new OpenCvSharp.Rect(0, 0, carFactoryMat.Width, carFactoryMat.Height),
+                                out var factoryRegions,
+                                searchText: null,
+                                shouldClick: false,
+                                debug: IsDebug,
+                                debugTitle: $"UpCarPoint 工厂页OCR (round {round + 1})"))
                             {
-                                ClsLogger.LogPoint("UpCarPoint: 车厂界面截图编码失败。");
+                                ClsLogger.LogPoint("UpCarPoint: 车厂界面OCR识别失败。");
                                 return;
                             }
 
-                            var factoryOcr = ClsOCR.RecognizeFromBytes(factoryBytes);
                             var normalizedModel = Normalize(modelName ?? string.Empty);
 
                             OpenCvSharp.Rect excludeScaledRect = new OpenCvSharp.Rect();
@@ -993,7 +907,7 @@ namespace FH_WPF
                                 return;
                             }
 
-                            var modelRegions = (factoryOcr?.Regions ?? Array.Empty<PaddleOcrResultRegion>())
+                            var modelRegions = (factoryRegions ?? new List<PaddleOcrResultRegion>())
                                 .Where(p =>
                                 {
                                     var t = Normalize(p.Text ?? string.Empty);
@@ -1074,15 +988,14 @@ namespace FH_WPF
 
                                 using Mat expandedCropped = new Mat(carFactoryMat, safeExpandedRect);
                                 DebugShow(expandedCropped, $"Step8 Expanded ROI Crop ({i + 1})", IsDebug);
-                                if (!TryEncodeMatAsPng(expandedCropped, out byte[] expandedBytes))
-                                {
-                                    ClsLogger.LogPoint("UpCarPoint: 扩展 ROI 编码失败。");
-                                    return;
-                                }
-
-                                var expandedOcr = ClsOCR.RecognizeFromBytes(expandedBytes);
-                                var brandNewRegion = expandedOcr?.Regions?.FirstOrDefault(p => (p.Text ?? string.Empty).Contains("全新") && p.Score > 0);
-                                if (brandNewRegion == null || brandNewRegion.Value.Score == 0)
+                                if (!TryRecognizeAndClickROI(
+                                    carFactoryMat,
+                                    safeExpandedRect,
+                                    out var expandedRegions,
+                                    searchText: "全新",
+                                    shouldClick: true,
+                                    debug: IsDebug,
+                                    debugTitle: $"Step8 Expanded ROI Crop ({i + 1})"))
                                 {
                                     ClsLogger.LogPoint($"步骤17: 第{i + 1}个匹配车型扩展 ROI 内未检测到 '全新'。");
                                     continue;
@@ -1091,31 +1004,19 @@ namespace FH_WPF
                                 ClsLogger.LogPoint($"步骤18: 第{i + 1}个匹配车型扩展 ROI 内检测到 '全新'。");
                                 DebugShow(expandedCropped, $"Step10 Show - {modelName} Contains BrandNew ({i + 1})", IsDebug);
 
-                                double brandNewX = brandNewRegion.Value.Rect.Center.X + safeExpandedRect.X;
-                                double brandNewY = brandNewRegion.Value.Rect.Center.Y + safeExpandedRect.Y;
                                 // 步骤19: 点击'全新'之前检查取消
                                 CheckCancel("步骤19", s => ClsLogger.LogPoint(s));
-                                if (!TryClickImagePoint(carFactoryMat, brandNewX, brandNewY, "点击全新"))
-                                {
-                                    return;
-                                }
                                 Thread.Sleep(500);
-                                ClsLogicContorl_Ghub.ClickKey(Key.Enter);
-                                Thread.Sleep(500);
-                                ClsLogicContorl_Ghub.ClickKey(Key.Up);
-                                Thread.Sleep(100);
-                                ClsLogicContorl_Ghub.ClickKey(Key.Up);
-                                Thread.Sleep(100);
-                                ClsLogicContorl_Ghub.ClickKey(Key.Up);
-                                Thread.Sleep(100);
-                                ClsLogicContorl_Ghub.ClickKey(Key.Up);
-                                Thread.Sleep(100);
-                                ClsLogicContorl_Ghub.ClickKey(Key.Up);
-                                Thread.Sleep(100);
-                                ClsLogicContorl_Ghub.ClickKey(Key.Enter);
+                                ClickKeyAndWait(Key.Enter, 500, nameof(UpCarPoint));
+                                ClickKeyAndWait(Key.Up, 100, nameof(UpCarPoint));
+                                ClickKeyAndWait(Key.Up, 100, nameof(UpCarPoint));
+                                ClickKeyAndWait(Key.Up, 100, nameof(UpCarPoint));
+                                ClickKeyAndWait(Key.Up, 100, nameof(UpCarPoint));
+                                ClickKeyAndWait(Key.Up, 100, nameof(UpCarPoint));
+                                ClickKeyAndWait(Key.Enter, 0, nameof(UpCarPoint));
                                 ClsLogger.LogPoint("步骤19: 已点击全新并按下回车，等待12秒");
                                 Thread.Sleep(12000);
-                                ClsLogicContorl_Ghub.ClickKey(Key.Escape);
+                                ClickKeyAndWait(Key.Escape, 0, nameof(UpCarPoint));
                                 ClsLogger.LogPoint("步骤11: 已按下 ESC");
 
                                 clickedBrandNew = true;
@@ -1135,8 +1036,7 @@ namespace FH_WPF
                         int ClickKeyCount = OldTypeCarNum / 3 - 1 >= 1 ? OldTypeCarNum / 3 - 1 : 1;//最小为1
                         for (int i = 0; i < ClickKeyCount; i++)
                         {
-                            ClsLogicContorl_Ghub.ClickKey(Key.Right);
-                            Thread.Sleep(500);
+                            ClickKeyAndWait(Key.Right, 500, nameof(UpCarPoint));
                         }
 
 
@@ -1144,11 +1044,9 @@ namespace FH_WPF
                         {
                             // 品牌不再是 SUBARU，说明已没有更多全新车型，流程结束
                             ClsLogger.LogPoint("步骤21: 车库品牌不再包含 SUBARU，已无更多全新车型，流程完成。");
-                            ClsLogicContorl_Ghub.ClickKey(Key.Escape);
-                            Thread.Sleep(1000);
-                            ClsLogicContorl_Ghub.ClickKey(Key.Escape);
-                            Thread.Sleep(10000);
-                            System.Windows.Application.Current.Dispatcher.Invoke(() => { AllCarPointComplete?.Invoke(null, EventArgs.Empty); });
+                            ClickKeyAndWait(Key.Escape, 1000, nameof(UpCarPoint));
+                            ClickKeyAndWait(Key.Escape, 10000, nameof(UpCarPoint));
+                            System.Windows.Application.Current.Dispatcher.BeginInvoke(() => { AllCarPointComplete?.Invoke(null, EventArgs.Empty); });
                             return;
                         }
 
@@ -1161,192 +1059,117 @@ namespace FH_WPF
                         ClsLogger.LogPoint("步骤23: 再次检测后仍未找到'全新'，流程完成。");
                         return;
                     }
+                    #endregion
 
 
                     Thread.Sleep(1000);
 
-                    // 24: 使用ROI：升级与调教,缩放后点击该位置
-                    // 步骤24: 点击升级与调教前检查取消
+                    #region 升级与熟练度界面交互
+                    // 24: 使用 TryRecognizeAndClickROI 点击升级与调教
                     CheckCancel("步骤24", s => ClsLogger.LogPoint(s));
                     ClsLogger.LogPoint("步骤24: 点击 ROI-升级与调教");
-                    if (!TryGetObsScreenshotMat(out Mat upgradeMat))
+                    if (!TryRecognizeAndClickROI(ClsROI.UIElem.升级与调教, searchText: null, shouldClick: true, debug: IsDebug))
                     {
-                        ClsLogger.LogPoint("UpCarPoint: 步骤12截图失败。");
+                        ClsLogger.LogPoint("UpCarPoint: 未能点击 '升级与调教'。");
                         return;
-                    }
-
-                    using (upgradeMat)
-                    {
-                        DebugShow(upgradeMat, "Step11 Original - UpgradeAndTuning", IsDebug);
-                        if (!ClsROI.TargetRects.TryGetValue(ClsROI.UIElem.升级与调教, out OpenCvSharp.Rect upgradeBaseRect))
-                        {
-                            ClsLogger.LogPoint("UpCarPoint: ROI 中未配置 '升级与调教'。");
-                            return;
-                        }
-
-                        var baseResolution = new OpenCvSharp.Size(ClsObs.ScreenshotWidth, ClsObs.ScreenshotHeight);
-                        var targetSize = new OpenCvSharp.Size(upgradeMat.Width, upgradeMat.Height);
-                        var scaled = ClsROI.ScaleFromBase(upgradeBaseRect, baseResolution, targetSize);
-                        if (!TryCreateSafeCropRect(upgradeMat, scaled, out OpenCvSharp.Rect safeRect))
-                        {
-                            ClsLogger.LogPoint("UpCarPoint: 步骤12 ROI 无效。");
-                            return;
-                        }
-
-                        double cx = safeRect.X + safeRect.Width / 2.0;
-                        double cy = safeRect.Y + safeRect.Height / 2.0;
-                        if (IsDebug)
-                        {
-                            using var tmp = new Mat(upgradeMat, safeRect);
-                            DebugShow(tmp, "步骤24 ROI 标记 - 升级与调教", IsDebug);
-                        }
-
-                        if (!TryClickImagePoint(upgradeMat, cx, cy, "点击升级与调教"))
-                        {
-                            return;
-                        }
                     }
 
                     Thread.Sleep(500);
 
-                    // 25: 使用ROI：车辆熟练度，缩放后点击该位置
-                    // 步骤25: 点击车辆熟练度前检查取消
+                    // 25: 使用 TryRecognizeAndClickROI 点击车辆熟练度
                     CheckCancel("步骤25", s => ClsLogger.LogPoint(s));
                     ClsLogger.LogPoint("步骤25: 点击 ROI-车辆熟练度");
-                    if (!TryGetObsScreenshotMat(out Mat skillMat))
+                    if (!TryRecognizeAndClickROI(ClsROI.UIElem.车辆熟练度, searchText: null, shouldClick: true, debug: IsDebug))
                     {
-                        ClsLogger.LogPoint("UpCarPoint: 步骤13截图失败。");
+                        ClsLogger.LogPoint("UpCarPoint: 未能点击 '车辆熟练度'。");
                         return;
                     }
 
-                    using (skillMat)
-                    {
-                        DebugShow(skillMat, "Step12 Original - VehicleSkill", IsDebug);
-                        if (!ClsROI.TargetRects.TryGetValue(ClsROI.UIElem.车辆熟练度, out OpenCvSharp.Rect skillBaseRect))
-                        {
-                            ClsLogger.LogPoint("UpCarPoint: ROI 中未配置 '车辆熟练度'。");
-                            return;
-                        }
-
-                        var baseResolution = new OpenCvSharp.Size(ClsObs.ScreenshotWidth, ClsObs.ScreenshotHeight);
-                        var targetSize = new OpenCvSharp.Size(skillMat.Width, skillMat.Height);
-                        var scaled = ClsROI.ScaleFromBase(skillBaseRect, baseResolution, targetSize);
-                        if (!TryCreateSafeCropRect(skillMat, scaled, out OpenCvSharp.Rect safeRect))
-                        {
-                            ClsLogger.LogPoint("UpCarPoint: 步骤13 ROI 无效。");
-                            return;
-                        }
-
-                        double cx = safeRect.X + safeRect.Width / 2.0;
-                        double cy = safeRect.Y + safeRect.Height / 2.0;
-                        if (IsDebug)
-                        {
-                            using var tmp = new Mat(skillMat, safeRect);
-                            DebugShow(tmp, "Step13 ROI Marked - VehicleSkill", IsDebug);
-                        }
-                        if (!TryClickImagePoint(skillMat, cx, cy, "点击车辆熟练度"))
-                        {
-                            return;
-                        }
-                    }
-
                     Thread.Sleep(800);
+                    #endregion
 
+                    #region 识别点数并决定是否执行加点
                     // 26: 采图，使用ROI：熟练度点数，裁剪后判断点数是否 >=30
                     // 步骤26: 识别熟练度点数前检查取消
                     CheckCancel("步骤26", s => ClsLogger.LogPoint(s));
                     ClsLogger.LogPoint("步骤26: 识别熟练度点数");
-                    if (!TryGetObsScreenshotMat(out Mat pointMat))
+                    int currentPoint = 0;
+                    if (!TryRecognizeAndClickROI(ClsROI.UIElem.加点界面熟练度点数, out var pointRegions, searchText: null, shouldClick: false, debug: IsDebug))
                     {
-                        ClsLogger.LogPoint("UpCarPoint: 步骤14截图失败。");
+                        ClsLogger.LogPoint("UpCarPoint: 步骤14识别熟练度点数失败。");
                         return;
                     }
 
-                    int currentPoint = 0;
-                    using (pointMat)
+                    var values = new List<int>();
+                    foreach (var r in pointRegions)
                     {
-                        if (!ClsROI.TargetRects.TryGetValue(ClsROI.UIElem.加点界面熟练度点数, out OpenCvSharp.Rect pointBaseRect))
+                        var ms = System.Text.RegularExpressions.Regex.Matches(r.Text ?? string.Empty, @"\d+");
+                        foreach (System.Text.RegularExpressions.Match m in ms)
                         {
-                            ClsLogger.LogPoint("UpCarPoint: ROI 中未配置 '熟练度点数'。");
-                            return;
+                            if (int.TryParse(m.Value, out int v)) values.Add(v);
                         }
-
-                        var scaled = ClsROI.ScaleFromBase(pointBaseRect, new OpenCvSharp.Size(ClsObs.ScreenshotWidth, ClsObs.ScreenshotHeight), new OpenCvSharp.Size(pointMat.Width, pointMat.Height));
-                        if (!TryCreateSafeCropRect(pointMat, scaled, out OpenCvSharp.Rect safeRect))
-                        {
-                            ClsLogger.LogPoint("UpCarPoint: 步骤14 ROI 无效。");
-                            return;
-                        }
-
-                        using Mat pointCrop = new Mat(pointMat, safeRect);
-                        DebugShow(pointCrop, "Step14 Cropped - SkillPoints", IsDebug);
-                        if (!TryEncodeMatAsPng(pointCrop, out byte[] pointBytes))
-                        {
-                            ClsLogger.LogPoint("UpCarPoint: 步骤14裁剪编码失败。");
-                            return;
-                        }
-
-                        var pointOcr = ClsOCR.RecognizeFromBytes(pointBytes);
-                        var values = new List<int>();
-                        foreach (var r in pointOcr.Regions)
-                        {
-                            var ms = System.Text.RegularExpressions.Regex.Matches(r.Text ?? string.Empty, @"\d+");
-                            foreach (System.Text.RegularExpressions.Match m in ms)
-                            {
-                                if (int.TryParse(m.Value, out int v)) values.Add(v);
-                            }
-                        }
-
-                        currentPoint = values.Count > 0 ? values.Max() : 0;
-                        ClsLogger.LogPoint($"步骤14: 当前熟练度点数={currentPoint}");
-                        System.Windows.Application.Current.Dispatcher.Invoke(() =>
-                        {
-                            DetectPoint?.Invoke(null, currentPoint);
-                        });
                     }
+
+                    currentPoint = values.Count > 0 ? values.Max() : 0;
+                    ClsLogger.LogPoint($"步骤14: 当前熟练度点数={currentPoint}");
+                    System.Windows.Application.Current.Dispatcher.BeginInvoke(() =>
+                    {
+                        DetectPoint?.Invoke(null, currentPoint);
+                    });
 
                     if (currentPoint < 30)
                     {
                         ClsLogger.LogPoint("步骤26: 点数小于30，终止循环。");
-                        Thread.Sleep(1000);
-                        ClsLogicContorl_Ghub.ClickKey(Key.Escape);
-                        Thread.Sleep(1000);
-                        ClsLogicContorl_Ghub.ClickKey(Key.Escape);
+                        ClickKeyAndWait(Key.Escape, 1000, nameof(UpCarPoint));
+                        ClickKeyAndWait(Key.Escape, 1000, nameof(UpCarPoint));
                         Thread.Sleep(1000);
                         // 循环结束
                         break;
                     }
+                    #endregion
 
+                    #region 加点按键序列与循环判断
                     // 27: 依次按键序列
                     CheckCancel("步骤27", s => ClsLogger.LogPoint(s));
                     ClsLogger.LogPoint("步骤27: 开始执行按键序列");
                     FocusWindowByProcessName("forzahorizon6");
                     //首个技能点
-                    ClsLogicContorl_Ghub.ClickKey(Key.Enter);
-                    Thread.Sleep(1500);
+                    ClickKeyAndWait(Key.Enter, 1500, nameof(UpCarPoint));
                     //后续技能点
                     Key[] directions = new[] { Key.Right, Key.Up, Key.Up, Key.Up, Key.Left };
                     foreach (var dir in directions)
                     {
-                        ClsLogicContorl_Ghub.ClickKey(dir, keyHoldMs);
-                        Thread.Sleep(300);
-                        ClsLogicContorl_Ghub.ClickKey(Key.Enter);
-                        Thread.Sleep(1000);
+                        ClickKeyAndWait(dir, 300, nameof(UpCarPoint));
+                        ClickKeyAndWait(Key.Enter, 1000, nameof(UpCarPoint));
                     }
 
-                    ClsLogicContorl_Ghub.ClickKey(Key.Escape);
-                    Thread.Sleep(1000);
-                    ClsLogicContorl_Ghub.ClickKey(Key.Escape);
-                    Thread.Sleep(2000);
+                    ClickKeyAndWait(Key.Escape, 1000, nameof(UpCarPoint));
+                    ClickKeyAndWait(Key.Escape, 2000, nameof(UpCarPoint));
                     ClsLogger.LogPoint("步骤27: 按键序列执行完成");
-                    System.Windows.Application.Current.Dispatcher.Invoke(() =>
+                    System.Windows.Application.Current.Dispatcher.BeginInvoke(() =>
                     {
                         SingelCarPointComplete?.Invoke(null, EventArgs.Empty);
                     });
 
-                    // 循环继续：点数 >= 30，回到主循环开始
-                    ClsLogger.LogPoint($"循环继续: 点数 {currentPoint} >= 30，重新开始升级同一辆车");
+                    // 根据检测到的点数判断执行完按键序列后是否还应继续。
+                    // 如果当前点数减去 30 后仍然 >= 30，则继续；否则不重复执行（避免剩余点数不足以再次升级）。
+                    int remainingAfter = currentPoint - 30;
+                    if (remainingAfter >= 30)
+                    {
+                        ClsLogger.LogPoint($"循环继续: 点数 {currentPoint} >= 30，扣除30后剩余 {remainingAfter} >= 30，继续升级同一辆车");
+                    }
+                    else
+                    {
+                        ClsLogger.LogPoint($"循环结束: 点数 {currentPoint} - 30 = {remainingAfter} 小于30，执行完加点后不再重复。");
+                        //退回主界面
+                        ClickKeyAndWait(Key.Escape, 1000, nameof(UpCarPoint));
+                        ClickKeyAndWait(Key.Escape, 7000, nameof(UpCarPoint));
+                        finished = true;
+                        break;
+                    }
+                    #endregion
                 } // 结束 while 循环
+                #endregion
             }
             catch (OperationCanceledException)
             {
@@ -1358,11 +1181,22 @@ namespace FH_WPF
                 ClsLogger.LogPoint($"UpCarPoint: 发生错误 - {ex.Message}");
                 Debug.WriteLine($"UpCarPoint: Exception - {ex}");
             }
+            finally
+            {
+                #region 完成和清理
+                if (!finished)
+                {
+                    try { System.Windows.Application.Current.Dispatcher.BeginInvoke(() => { AllCarPointComplete?.Invoke(null, EventArgs.Empty); }); } catch { }
+                }
+                #endregion
+            }
         }
 
         public static void BuyCar(int quantity, string manufacturerName, string modelName, bool IsDebug = false)
         {
             RebuildCancelTokenIfNeeded();
+
+            bool finished = false;
 
             // 使用公共 DebugShow(mat, title, enabled) 与 CheckCancel(stepName, logAction) 方法
 
@@ -1400,26 +1234,12 @@ namespace FH_WPF
 
                 // 步骤3: 按下 ESC 和 PageDown，进入车库
                 CheckCancel("步骤3");
-                ClsLogger.Log("步骤3: 按下 ESC，等待 1000ms");
                 FocusWindowByProcessName("forzahorizon6");
-                ClsLogicContorl_Ghub.ClickKey(Key.Escape);
-                Thread.Sleep(1000);
-
-                ClsLogger.Log("步骤4: 按下 PageDown，等待 500ms");
-                ClsLogicContorl_Ghub.ClickKey(Key.PageDown);
-                Thread.Sleep(500);
-
-                ClsLogger.Log("步骤5: 按下 PageDown，等待 500ms");
-                ClsLogicContorl_Ghub.ClickKey(Key.PageDown);
-                Thread.Sleep(500);
-
-                ClsLogger.Log("步骤6: 按下 Enter，等待 500ms");
-                ClsLogicContorl_Ghub.ClickKey(Key.Enter);
-                Thread.Sleep(500);
-
-                ClsLogger.Log("步骤7: 按下 Enter，等待 9000ms");
-                ClsLogicContorl_Ghub.ClickKey(Key.Enter);
-                Thread.Sleep(9000);
+                ClickKeyAndWait(Key.Escape, 1000, nameof(BuyCar));
+                ClickKeyAndWait(Key.PageDown, 500, nameof(BuyCar));
+                ClickKeyAndWait(Key.PageDown, 500, nameof(BuyCar));
+                ClickKeyAndWait(Key.Enter, 500, nameof(BuyCar));
+                ClickKeyAndWait(Key.Enter, 10000, nameof(BuyCar));
 
 
                 // 步骤8. 按 PageDown 两次，进入我的车辆页面
@@ -1438,63 +1258,31 @@ namespace FH_WPF
                 // 步骤12: 点击右、等待200ms回车、等待500ms、下、等待200ms、回车
                 CheckCancel("步骤12");
                 FocusWindowByProcessName("forzahorizon6");
-                ClsLogicContorl_Ghub.ClickKey(Key.Right);
-                Thread.Sleep(200);
-                ClsLogicContorl_Ghub.ClickKey(Key.Enter);
-                Thread.Sleep(500);
-                ClsLogicContorl_Ghub.ClickKey(Key.Down);
-                Thread.Sleep(200);
-                ClsLogicContorl_Ghub.ClickKey(Key.Enter);
-                Thread.Sleep(500);
+                ClickKeyAndWait(Key.Right, 200, nameof(BuyCar));
+                ClickKeyAndWait(Key.Enter, 500, nameof(BuyCar));
+                ClickKeyAndWait(Key.Down, 200, nameof(BuyCar));
+                ClickKeyAndWait(Key.Enter, 500, nameof(BuyCar));
 
                 // 步骤13: 按下 backspace 进入车厂界面
                 CheckCancel("步骤13");
-                ClsLogicContorl_Ghub.ClickKey(Key.Back);
-                Thread.Sleep(500);
+                ClickKeyAndWait(Key.Back, 500, nameof(BuyCar));
 
-                // 步骤14-15: 取图查找车厂并点击，没找到则 PageUp 后再查找一次
+                // 步骤14-15: 查找车厂并点击，没找到则 PageUp 后再查找一次
                 CheckCancel("步骤14");
                 bool clickedManufacturer = false;
-                string normalizedManufacturer = Normalize(manufacturerName);
                 for (int attempt = 0; attempt < 2; attempt++)
                 {
-                    if (!TryGetObsScreenshotMat(out Mat manufacturerMat))
+                    if (TryRecognizeAndClickROI(ClsROI.UIElem.整页, manufacturerName, shouldClick: true, debug: IsDebug))
                     {
-                        ClsLogger.Log("BuyCar: 获取车厂界面截图失败。");
-                        return;
-                    }
-
-                    using (manufacturerMat)
-                    {
-                        DebugShow(manufacturerMat, $"BuyCar Step14 Manufacturer (attempt {attempt + 1})", IsDebug);
-                        if (!TryEncodeMatAsPng(manufacturerMat, out byte[] manufacturerBytes))
-                        {
-                            ClsLogger.Log("BuyCar: 车厂界面截图编码失败。");
-                            return;
-                        }
-
-                        var manufacturerOcr = ClsOCR.RecognizeFromBytes(manufacturerBytes);
-                        var manufacturerRegion = manufacturerOcr?.Regions?.FirstOrDefault(p =>
-                            Normalize(p.Text ?? string.Empty).Contains(normalizedManufacturer));
-
-                        if (manufacturerRegion != null && manufacturerRegion?.Score > 0)
-                        {
-                            if (!TryClickImagePoint(manufacturerMat, manufacturerRegion.Value.Rect.Center.X, manufacturerRegion.Value.Rect.Center.Y, $"点击车厂 {manufacturerName}"))
-                            {
-                                return;
-                            }
-
-                            ClsLogger.Log($"BuyCar: 已点击车厂 {manufacturerName}");
-                            clickedManufacturer = true;
-                            break;
-                        }
+                        ClsLogger.Log($"BuyCar: 已点击车厂 {manufacturerName}");
+                        clickedManufacturer = true;
+                        break;
                     }
 
                     if (attempt == 0)
                     {
                         FocusWindowByProcessName("forzahorizon6");
-                        ClsLogicContorl_Ghub.ClickKey(Key.PageUp);
-                        Thread.Sleep(1000);
+                        ClickKeyAndWait(Key.PageUp, 1000, nameof(BuyCar));
                     }
                 }
 
@@ -1506,49 +1294,22 @@ namespace FH_WPF
 
                 Thread.Sleep(500);
 
-                // 步骤16: 进入对应车厂界面后取图并查找对应车型（未查找到则按下↓，最多尝试5次）
+                // 步骤16: 进入对应车厂界面后查找对应车型（未查找到则按下↓，最多尝试5次）
                 CheckCancel("步骤16");
                 bool clickedModel = false;
-                string normalizedModel = Normalize(modelName);
                 for (int attempt = 0; attempt < 5; attempt++)
                 {
-                    if (!TryGetObsScreenshotMat(out Mat modelMat))
+                    if (TryRecognizeAndClickROI(ClsROI.UIElem.整页, modelName, shouldClick: true, debug: IsDebug))
                     {
-                        ClsLogger.Log("BuyCar: 获取车型界面截图失败。");
-                        return;
-                    }
-
-                    using (modelMat)
-                    {
-                        DebugShow(modelMat, $"BuyCar Step16 Model (attempt {attempt + 1})", IsDebug);
-                        if (!TryEncodeMatAsPng(modelMat, out byte[] modelBytes))
-                        {
-                            ClsLogger.Log("BuyCar: 车型界面截图编码失败。");
-                            return;
-                        }
-
-                        var modelOcr = ClsOCR.RecognizeFromBytes(modelBytes);
-                        var modelRegion = modelOcr?.Regions?.FirstOrDefault(p =>
-                            Normalize(p.Text ?? string.Empty).Contains(normalizedModel));
-
-                        if (modelRegion != null && modelRegion?.Score > 0)
-                        {
-                            if (!TryClickImagePoint(modelMat, modelRegion.Value.Rect.Center.X, modelRegion.Value.Rect.Center.Y, $"点击车型 {modelName}"))
-                            {
-                                return;
-                            }
-
-                            ClsLogger.Log($"BuyCar: 已点击车型 {modelName}");
-                            clickedModel = true;
-                            break;
-                        }
+                        ClsLogger.Log($"BuyCar: 已点击车型 {modelName}");
+                        clickedModel = true;
+                        break;
                     }
 
                     if (attempt < 4)
                     {
                         FocusWindowByProcessName("forzahorizon6");
-                        ClsLogicContorl_Ghub.ClickKey(Key.Down);
-                        Thread.Sleep(300);
+                        ClickKeyAndWait(Key.Down, 300, nameof(BuyCar));
                     }
                 }
 
@@ -1561,39 +1322,31 @@ namespace FH_WPF
                 // 步骤17: 根据传入数量从空格开始循环购买
                 Thread.Sleep(300);
                 FocusWindowByProcessName("forzahorizon6");
-                ClsLogicContorl_Ghub.ClickKey(Key.Enter);
-                Thread.Sleep(300);
+                ClickKeyAndWait(Key.Enter, 300, nameof(BuyCar));
 
                 for (int i = 0; i < quantity; i++)
                 {
                     CheckCancel($"步骤17-购买第{i + 1}次");
                     ClsLogger.Log($"BuyCar: 执行第 {i + 1}/{quantity} 次购买");
 
-                    ClsLogicContorl_Ghub.ClickKey(Key.Space);
-                    Thread.Sleep(1000);
-                    ClsLogicContorl_Ghub.ClickKey(Key.Down);
-                    Thread.Sleep(300);
-                    ClsLogicContorl_Ghub.ClickKey(Key.Enter);
-                    Thread.Sleep(300);
-                    ClsLogicContorl_Ghub.ClickKey(Key.Enter);
-                    Thread.Sleep(400);
-                    ClsLogicContorl_Ghub.ClickKey(Key.Enter);
-                    Thread.Sleep(400);
-                    ClsLogicContorl_Ghub.ClickKey(Key.Enter);
-                    Thread.Sleep(1000);
+                    ClickKeyAndWait(Key.Space, 400, nameof(BuyCar));
+                    ClickKeyAndWait(Key.Down, 400, nameof(BuyCar));
+                    ClickKeyAndWait(Key.Enter, 400, nameof(BuyCar));
+                    ClickKeyAndWait(Key.Enter, 400, nameof(BuyCar));
+                    ClickKeyAndWait(Key.Enter, 1000, nameof(BuyCar));
+                    ClickKeyAndWait(Key.Enter, 1500, nameof(BuyCar));
                 }
 
                 // 步骤18: 购买完成之后点击5次ESC，每个间隔1秒，然后等待5秒发送购买完成事件
                 CheckCancel("步骤18");
                 for (int i = 0; i < 5; i++)
                 {
-                    ClsLogicContorl_Ghub.ClickKey(Key.Escape);
-                    Thread.Sleep(1000);
+                    ClickKeyAndWait(Key.Escape, 1000, nameof(BuyCar));
                 }
 
-                Thread.Sleep(5000);
-                System.Windows.Application.Current.Dispatcher.Invoke(() => { BuyCarCompleted?.Invoke(null, EventArgs.Empty); });
+                Thread.Sleep(7000);
                 ClsLogger.Log("BuyCar: 购买完成事件已触发");
+                finished = true;
             }
             catch (OperationCanceledException)
             {
@@ -1605,47 +1358,15 @@ namespace FH_WPF
                 ClsLogger.Log($"BuyCar: 发生错误 - {ex.Message}");
                 Debug.WriteLine($"BuyCar: Exception - {ex}");
             }
+            finally
+            {
+                if (!finished)
+                {
+                    try { System.Windows.Application.Current.Dispatcher.BeginInvoke(() => { BuyCarCompleted?.Invoke(null, EventArgs.Empty); }); } catch { }
+                }
+            }
         }
 
-        /// <summary>
-        /// 判定当前游戏画面是否处于车库界面。
-        /// 通过 OCR 在 OBS 截图中查找关键文本（例如“我的车辆”、“前往制造商”等）来决定是否满足车库界面特征。
-        /// </summary>
-        /// <returns>如果当前界面被判断为车库返回 true，否则返回 false。</returns>
-        /// <summary>
-        /// 判断当前画面是否为车库界面（高层操作）。
-        /// </summary>
-        /// <returns>如果是车库界面返回 true，否则 false。</returns>
-        public static bool IsInGarage()
-        {
-            // 1. 从 OBS 获取流截图
-            var sources = ClsObs._obs.GetCurrentProgramScene();
-            string? base64Image = ClsObs.GetSourceScreenshotAsync(sources, "png", ClsObs.ScreenshotWidth, ClsObs.ScreenshotHeight, 100).GetAwaiter().GetResult();
-            if (string.IsNullOrEmpty(base64Image))
-            {
-                Debug.WriteLine("IsInGarage: 未能从 OBS 获取截图（base64 为空）。");
-                return false;
-            }
-            byte[] gameShot = Convert.FromBase64String(base64Image);
-            // 2. OCR 计算位置
-            var ocrRst = ClsOCR.RecognizeFromBytes(gameShot);
-
-            bool hasMyCar = false;
-            bool hasBackSpace = false;
-            bool hasCarCollection = false;
-
-            foreach (var p in ocrRst.Regions)
-            {
-                if (p.Text.Contains("我的车辆")) hasMyCar = true;
-                if (p.Text.Contains("前往制造商")) hasBackSpace = true;
-                if (p.Text.Contains("车辆收藏")) hasCarCollection = true;
-            }
-
-            // 最终一并判断
-            bool IsInGarge = hasMyCar && hasBackSpace && !hasCarCollection;
-
-            return IsInGarge;
-        }
 
         /// <summary>
         /// 通用区域文本识别方法：获取 OBS 截图，从指定 ROI 识别文本，可选点击元素。
@@ -1662,32 +1383,40 @@ namespace FH_WPF
             bool shouldClick = false,
             bool debug = false)
         {
+            return TryRecognizeAndClickROI(roiElement, out _, searchText, shouldClick, debug);
+        }
+
+        public static bool TryRecognizeAndClickROI(
+            ClsROI.UIElem roiElement,
+            out List<PaddleOcrResultRegion> regions,
+            string? searchText = null,
+            bool shouldClick = false,
+            bool debug = false)
+        {
+            regions = new List<PaddleOcrResultRegion>();
             try
             {
-                // 步骤 1: 获取 OBS 截图
                 if (!TryGetObsScreenshotMat(out Mat imageMat))
                 {
-                    Debug.WriteLine($"TryRecognizeAndClickROI: 未能获取 OBS 截图");
+                    ClsLogger.LogGlobal($"TryRecognizeAndClickROI: 未能获取 OBS 截图");
                     return false;
                 }
 
                 using (imageMat)
                 {
-                    // 步骤 2: 从 ClsROI 获取该元素的 ROI 配置
                     if (!ClsROI.TargetRects.TryGetValue(roiElement, out OpenCvSharp.Rect baseRect))
                     {
-                        Debug.WriteLine($"TryRecognizeAndClickROI: ROI 中未配置 '{roiElement}'");
+                        ClsLogger.LogGlobal($"TryRecognizeAndClickROI: ROI 中未配置 '{roiElement}'");
                         return false;
                     }
 
-                    // 步骤 3: 缩放并裁剪矩形
                     var baseResolution = new OpenCvSharp.Size(ClsObs.ScreenshotWidth, ClsObs.ScreenshotHeight);
                     var targetSize = new OpenCvSharp.Size(imageMat.Width, imageMat.Height);
                     OpenCvSharp.Rect scaledRect = ClsROI.ScaleFromBase(baseRect, baseResolution, targetSize);
 
                     if (!TryCreateSafeCropRect(imageMat, scaledRect, out OpenCvSharp.Rect cropRect))
                     {
-                        Debug.WriteLine($"TryRecognizeAndClickROI: ROI 裁剪无效 - {roiElement}");
+                        ClsLogger.LogGlobal($"TryRecognizeAndClickROI: ROI 裁剪无效 - {roiElement}");
                         return false;
                     }
 
@@ -1698,25 +1427,25 @@ namespace FH_WPF
                         try { SafeImShow($"TryRecognizeAndClickROI - {roiElement}", cropped, autoDestroy: true); }
                         catch (Exception ex)
                         {
-                            Debug.WriteLine(ex.Message);
+                            ClsLogger.LogGlobal(ex.Message);
                         }
                     }
 
-                    // 步骤 4: OCR 识别
                     if (!TryEncodeMatAsPng(cropped, out byte[] croppedBytes))
                     {
-                        Debug.WriteLine($"TryRecognizeAndClickROI: 图像编码失败 - {roiElement}");
+                        ClsLogger.LogGlobal($"TryRecognizeAndClickROI: 图像编码失败 - {roiElement}");
                         return false;
                     }
 
                     var ocrRst = ClsOCR.RecognizeFromBytes(croppedBytes);
                     if (ocrRst?.Regions == null || ocrRst.Regions.Length == 0)
                     {
-                        Debug.WriteLine($"TryRecognizeAndClickROI: OCR 未识别到任何文本 - {roiElement}");
+                        ClsLogger.LogGlobal($"TryRecognizeAndClickROI: OCR 未识别到任何文本 - {roiElement}");
                         return false;
                     }
 
-                    // 步骤 5: 搜索指定文本
+                    regions = ocrRst.Regions.ToList();
+
                     bool found = false;
                     double? targetCenterX = null;
                     double? targetCenterY = null;
@@ -1725,7 +1454,6 @@ namespace FH_WPF
                     {
                         string regionText = region.Text ?? "";
 
-                        // 如果没有指定搜索文本，只要有识别结果就返回 true
                         if (string.IsNullOrEmpty(searchText))
                         {
                             found = true;
@@ -1734,8 +1462,7 @@ namespace FH_WPF
                             break;
                         }
 
-                        // 如果指定了搜索文本，查找包含该文本的区域
-                        if (regionText.Contains(searchText))
+                        if (regionText.Contains(searchText, StringComparison.OrdinalIgnoreCase))
                         {
                             found = true;
                             targetCenterX = region.Rect.Center.X + cropRect.X;
@@ -1746,18 +1473,17 @@ namespace FH_WPF
 
                     if (!found)
                     {
-                        Debug.WriteLine($"TryRecognizeAndClickROI: 未找到文本 '{searchText}' - {roiElement}");
+                        ClsLogger.LogGlobal($"TryRecognizeAndClickROI: 未找到文本 '{searchText}' - {roiElement}");
                         return false;
                     }
 
-                    // 步骤 6: 根据参数决定是否点击
                     if (shouldClick && targetCenterX.HasValue && targetCenterY.HasValue)
                     {
                         Thread.Sleep(200);
                         if (!TryClickImagePoint(imageMat, targetCenterX.Value, targetCenterY.Value,
                             $"TryRecognizeAndClickROI 点击 {roiElement} - '{searchText}'"))
                         {
-                            Debug.WriteLine($"TryRecognizeAndClickROI: 点击失败 - {roiElement}");
+                            ClsLogger.LogGlobal($"TryRecognizeAndClickROI: 点击失败 - {roiElement}");
                             return false;
                         }
                         Thread.Sleep(300);
@@ -1786,56 +1512,79 @@ namespace FH_WPF
             out List<PaddleOcrResultRegion> regions,
             bool debug = false)
         {
-            regions = new List<PaddleOcrResultRegion>();
+            return TryRecognizeAndClickROI(roiElement, out regions, searchText: null, shouldClick: false, debug: debug);
+        }
 
+        private static bool TryRecognizeAndClickROI(
+            Mat imageMat,
+            OpenCvSharp.Rect roiRect,
+            out List<PaddleOcrResultRegion> regions,
+            string? searchText = null,
+            bool shouldClick = false,
+            bool debug = false,
+            string? debugTitle = null)
+        {
+            regions = new List<PaddleOcrResultRegion>();
             try
             {
-                if (!TryGetObsScreenshotMat(out Mat imageMat))
+                if (imageMat == null || imageMat.Empty())
                 {
                     return false;
                 }
 
-                using (imageMat)
+                if (!TryCreateSafeCropRect(imageMat, roiRect, out OpenCvSharp.Rect cropRect))
                 {
-                    if (!ClsROI.TargetRects.TryGetValue(roiElement, out OpenCvSharp.Rect baseRect))
-                    {
-                        return false;
-                    }
-
-                    var baseResolution = new OpenCvSharp.Size(ClsObs.ScreenshotWidth, ClsObs.ScreenshotHeight);
-                    var targetSize = new OpenCvSharp.Size(imageMat.Width, imageMat.Height);
-                    OpenCvSharp.Rect scaledRect = ClsROI.ScaleFromBase(baseRect, baseResolution, targetSize);
-
-                    if (!TryCreateSafeCropRect(imageMat, scaledRect, out OpenCvSharp.Rect cropRect))
-                    {
-                        return false;
-                    }
-
-                    using Mat cropped = new Mat(imageMat, cropRect);
-
-                    if (debug)
-                    {
-                        try { SafeImShow($"TryRecognizeROIRegions - {roiElement}", cropped, autoDestroy: true); } catch { }
-                    }
-
-                    if (!TryEncodeMatAsPng(cropped, out byte[] croppedBytes))
-                    {
-                        return false;
-                    }
-
-                    var ocrRst = ClsOCR.RecognizeFromBytes(croppedBytes);
-                    if (ocrRst?.Regions == null || ocrRst.Regions.Length == 0)
-                    {
-                        return false;
-                    }
-
-                    regions = ocrRst.Regions.ToList();
-                    return true;
+                    return false;
                 }
+
+                using Mat cropped = new Mat(imageMat, cropRect);
+                if (debug)
+                {
+                    try { SafeImShow(debugTitle ?? "TryRecognizeAndClickROI-Rect", cropped, autoDestroy: true); } catch { }
+                }
+
+                if (!TryEncodeMatAsPng(cropped, out byte[] croppedBytes))
+                {
+                    return false;
+                }
+
+                var ocrRst = ClsOCR.RecognizeFromBytes(croppedBytes);
+                if (ocrRst?.Regions == null || ocrRst.Regions.Length == 0)
+                {
+                    return false;
+                }
+
+                regions = ocrRst.Regions.ToList();
+
+                bool found = false;
+                double? targetCenterX = null;
+                double? targetCenterY = null;
+                foreach (var region in ocrRst.Regions)
+                {
+                    string regionText = region.Text ?? string.Empty;
+                    if (string.IsNullOrEmpty(searchText) || regionText.Contains(searchText, StringComparison.OrdinalIgnoreCase))
+                    {
+                        found = true;
+                        targetCenterX = region.Rect.Center.X + cropRect.X;
+                        targetCenterY = region.Rect.Center.Y + cropRect.Y;
+                        break;
+                    }
+                }
+
+                if (!found)
+                {
+                    return false;
+                }
+
+                if (shouldClick && targetCenterX.HasValue && targetCenterY.HasValue)
+                {
+                    return TryClickImagePoint(imageMat, targetCenterX.Value, targetCenterY.Value, "TryRecognizeAndClickROI-Rect 点击");
+                }
+
+                return true;
             }
-            catch (Exception ex)
+            catch
             {
-                Debug.WriteLine($"TryRecognizeROIRegions 异常: {ex.Message}");
                 return false;
             }
         }
@@ -1853,6 +1602,7 @@ namespace FH_WPF
         public static void GotoScriptRace(string blueprintCode, string manufacturerName, string modelName, int pointsPerRace = 9, bool debug = false)
         {
             RebuildCancelTokenIfNeeded();
+            bool finished = false;
             const int restartDetectTimeoutMs = 120000; // 2分钟超时
             const int restartDetectIntervalMs = 500; // 每500ms检测一次
 
@@ -1865,7 +1615,7 @@ namespace FH_WPF
                 ClsLogger.LogScript("=== GotoScriptRace 开始执行 ===");
 
                 // 触发蓝图执行开始事件（直接在流程中触发）
-                System.Windows.Application.Current.Dispatcher.Invoke(() => { BlueprintExecutionStarted?.Invoke(null, EventArgs.Empty); });
+                System.Windows.Application.Current.Dispatcher.BeginInvoke(() => { BlueprintExecutionStarted?.Invoke(null, EventArgs.Empty); });
 
                 // 步骤1-2: 识别大世界安娜区域并验证
                 CheckCancel("步骤2");
@@ -1882,11 +1632,9 @@ namespace FH_WPF
                 CheckCancel("步骤4");
                 ClsLogger.LogScript("步骤4: 按下 ESC，等待500ms");
                 FocusWindowByProcessName("forzahorizon6");
-                ClsLogicContorl_Ghub.ClickKey(Key.Escape);
-                Thread.Sleep(1000);
+                ClickKeyAndWait(Key.Escape, 1000, nameof(GotoScriptRace));
                 ClsLogger.LogScript("步骤5: 按下 PageDown，等待300ms");
-                ClsLogicContorl_Ghub.ClickKey(Key.PageDown);
-                Thread.Sleep(500);
+                ClickKeyAndWait(Key.PageDown, 500, nameof(GotoScriptRace));
 
                 // 步骤3: 识别车辆界面技术点数
                 CheckCancel("步骤6");
@@ -1904,7 +1652,7 @@ namespace FH_WPF
                         {
                             techPoints = points;
                             ClsLogger.LogScript($"步骤7: 识别到技术点数: {techPoints}");
-                            System.Windows.Application.Current.Dispatcher.Invoke(() => { DetectPoint?.Invoke(null, techPoints); });
+                            System.Windows.Application.Current.Dispatcher.BeginInvoke(() => { DetectPoint?.Invoke(null, techPoints); });
                             break;
                         }
                     }
@@ -1920,7 +1668,7 @@ namespace FH_WPF
                 int pointsNeeded = 999 - techPoints;
                 int loopsRequired = (pointsNeeded + pointsPerRace - 1) / pointsPerRace; // 向上取整
                 ClsLogger.LogScript($"步骤8.5: 当前技术点数={techPoints}，需要获得{pointsNeeded}点，单局{pointsPerRace}点，需要循环{loopsRequired}次");
-                System.Windows.Application.Current.Dispatcher.Invoke(() => { DetectPoint?.Invoke(null, techPoints); });
+                System.Windows.Application.Current.Dispatcher.BeginInvoke(() => { DetectPoint?.Invoke(null, techPoints); });
 
                 // 步骤4: 按 3 次 PageDown，然后按 Enter/Enter/BackSpace/UP/Enter
                 CheckCancel("步骤9");
@@ -1929,21 +1677,15 @@ namespace FH_WPF
                 ClsLogger.LogScript("步骤9: 按 3 次 PageDown");
                 for (int i = 0; i < 3; i++)
                 {
-                    ClsLogicContorl_Ghub.ClickKey(Key.PageDown);
-                    Thread.Sleep(200);
+                    ClickKeyAndWait(Key.PageDown, 200, nameof(GotoScriptRace));
                 }
                 Thread.Sleep(500);
                 ClsLogger.LogScript("步骤10: 按 Enter/Enter/BackSpace/UP/Enter");
-                ClsLogicContorl_Ghub.ClickKey(Key.Enter);
-                Thread.Sleep(1000);
-                ClsLogicContorl_Ghub.ClickKey(Key.Enter);
-                Thread.Sleep(1000);
-                ClsLogicContorl_Ghub.ClickKey(Key.Back);
-                Thread.Sleep(1000);
-                ClsLogicContorl_Ghub.ClickKey(Key.Up);
-                Thread.Sleep(500);
-                ClsLogicContorl_Ghub.ClickKey(Key.Enter);
-                Thread.Sleep(1000);
+                ClickKeyAndWait(Key.Enter, 1000, nameof(GotoScriptRace));
+                ClickKeyAndWait(Key.Enter, 1000, nameof(GotoScriptRace));
+                ClickKeyAndWait(Key.Back, 1000, nameof(GotoScriptRace));
+                ClickKeyAndWait(Key.Up, 500, nameof(GotoScriptRace));
+                ClickKeyAndWait(Key.Enter, 1000, nameof(GotoScriptRace));
                 // 步骤5: 使用键盘输入蓝图代码
                 CheckCancel("步骤11");
                 ClsLogger.LogScript($"步骤11: 输入蓝图代码 (长度: {blueprintCode?.Length ?? 0})");
@@ -1955,15 +1697,11 @@ namespace FH_WPF
                 // 步骤6: 按 Enter/Down/Enter，等待 5 秒
                 CheckCancel("步骤12");
                 ClsLogger.LogScript("步骤12: 按 Enter/Down/Enter");
-                ClsLogicContorl_Ghub.ClickKey(Key.Enter);
-                Thread.Sleep(500);
-                ClsLogicContorl_Ghub.ClickKey(Key.Down);
-                Thread.Sleep(200);
-                ClsLogicContorl_Ghub.ClickKey(Key.Enter);
-                Thread.Sleep(4000);
-                ClsLogicContorl_Ghub.ClickKey(Key.Enter);
-                Thread.Sleep(1000);
-                ClsLogicContorl_Ghub.ClickKey(Key.Enter);
+                ClickKeyAndWait(Key.Enter, 500, nameof(GotoScriptRace));
+                ClickKeyAndWait(Key.Down, 200, nameof(GotoScriptRace));
+                ClickKeyAndWait(Key.Enter, 4000, nameof(GotoScriptRace));
+                ClickKeyAndWait(Key.Enter, 1000, nameof(GotoScriptRace));
+                ClickKeyAndWait(Key.Enter, 0, nameof(GotoScriptRace));
                 ClsLogger.LogScript("步骤13: 等待 5 秒");
                 Thread.Sleep(3000);//进入蓝图
 
@@ -2045,43 +1783,18 @@ namespace FH_WPF
                         for (int attempt = 0; attempt < 2; attempt++)
                         {
                             CheckCancel($"选车步骤1-{attempt + 1}");
-                            if (!TryGetObsScreenshotMat(out Mat manuMat))
+                            if (TryRecognizeAndClickROI(ClsROI.UIElem.整页, manufacturerName, shouldClick: true, debug: debug))
                             {
-                                ClsLogger.LogScript("步骤15: 获取制造商界面截图失败");
-                                return;
-                            }
-
-                            using (manuMat)
-                            {
-                                DebugShow(manuMat, $"Step7 Manufacturer Screen (attempt {attempt + 1})", debug);
-                                if (!TryEncodeMatAsPng(manuMat, out byte[] manuBytes))
-                                {
-                                    ClsLogger.LogScript("步骤16: 制造商界面截图编码失败");
-                                    return;
-                                }
-
-                                var manuOcr = ClsOCR.RecognizeFromBytes(manuBytes);
-                                var manufacturerRegion = manuOcr?.Regions?.FirstOrDefault(p =>
-                                    (p.Text ?? string.Empty).IndexOf(manufacturerName ?? string.Empty, StringComparison.OrdinalIgnoreCase) >= 0);
-
-                                if (manufacturerRegion != null && manufacturerRegion?.Score > 0)
-                                {
-                                    if (!TryClickImagePoint(manuMat, manufacturerRegion.Value.Rect.Center.X, manufacturerRegion.Value.Rect.Center.Y, $"点击斯巴鲁"))
-                                    {
-                                        return;
-                                    }
-                                    ClsLogger.LogScript("步骤17: 已点击 斯巴鲁");
-                                    clickedManufacturer = true;
-                                    break;
-                                }
+                                ClsLogger.LogScript($"步骤17: 已点击 {manufacturerName}");
+                                clickedManufacturer = true;
+                                break;
                             }
 
                             if (attempt == 0)
                             {
                                 ClsLogger.LogScript("步骤18: 未找到指定制造商，执行 PageUp 后重试");
                                 FocusWindowByProcessName("forzahorizon6");
-                                ClsLogicContorl_Ghub.ClickKey(Key.PageUp);
-                                Thread.Sleep(500);
+                                ClickKeyAndWait(Key.PageUp, 1000, nameof(GotoScriptRace));
                             }
                         }
 
@@ -2106,13 +1819,19 @@ namespace FH_WPF
                             using (carFactoryMat)
                             {
                                 DebugShow(carFactoryMat, $"Step7 Factory Screen (round {round + 1})", debug);
-                                if (!TryEncodeMatAsPng(carFactoryMat, out byte[] factoryBytes))
+                                if (!TryRecognizeAndClickROI(
+                                    carFactoryMat,
+                                    new OpenCvSharp.Rect(0, 0, carFactoryMat.Width, carFactoryMat.Height),
+                                    out var factoryRegions,
+                                    searchText: null,
+                                    shouldClick: false,
+                                    debug: debug,
+                                    debugTitle: $"GotoScriptRace 工厂页OCR (round {round + 1})"))
                                 {
-                                    ClsLogger.LogScript("步骤22: 车厂界面截图编码失败");
+                                    ClsLogger.LogScript("步骤22: 车厂界面OCR识别失败");
                                     return;
                                 }
 
-                                var factoryOcr = ClsOCR.RecognizeFromBytes(factoryBytes);
                                 var normalizedModel = Normalize7(modelName ?? string.Empty);
 
                                 if (!ClsROI.TargetRects.TryGetValue(ClsROI.UIElem.车辆框, out OpenCvSharp.Rect carFrameBaseRect))
@@ -2131,7 +1850,7 @@ namespace FH_WPF
                                     return;
                                 }
 
-                                var modelRegions = (factoryOcr?.Regions ?? Array.Empty<PaddleOcrResultRegion>())
+                                var modelRegions = (factoryRegions ?? new List<PaddleOcrResultRegion>())
                                     .Where(p =>
                                     {
                                         var t = Normalize7(p.Text ?? string.Empty);
@@ -2146,8 +1865,7 @@ namespace FH_WPF
                                 if (modelRegions.Count == 0)
                                 {
                                     ClsLogger.LogScript($"步骤25: 第{round + 1}轮未找到车型 '{modelName}'，翻页继续");
-                                    ClsLogicContorl_Ghub.ClickKey(Key.Right);
-                                    Thread.Sleep(500);
+                                    ClickKeyAndWait(Key.Right, 500, nameof(GotoScriptRace));
                                     continue;
                                 }
 
@@ -2188,27 +1906,30 @@ namespace FH_WPF
 
                                     using Mat expandedCropped = new Mat(carFactoryMat, safeExpandedRect);
                                     DebugShow(expandedCropped, $"Step7 Expanded ROI ({i + 1})", debug);
-                                    if (!TryEncodeMatAsPng(expandedCropped, out byte[] expandedBytes))
+                                    if (!TryRecognizeAndClickROI(
+                                        carFactoryMat,
+                                        safeExpandedRect,
+                                        out var expandedRegions,
+                                        searchText: null,
+                                        shouldClick: false,
+                                        debug: debug,
+                                        debugTitle: $"Step7 Expanded ROI ({i + 1})"))
                                     {
                                         continue;
                                     }
 
-                                    var expandedOcr = ClsOCR.RecognizeFromBytes(expandedBytes);
                                     int performanceScore = 0;
-                                    if (expandedOcr?.Regions != null)
+                                    foreach (var region in expandedRegions)
                                     {
-                                        foreach (var region in expandedOcr.Regions)
-                                        {
-                                            if (region.Score <= 0) continue;
+                                        if (region.Score <= 0) continue;
 
-                                            var matches = System.Text.RegularExpressions.Regex.Matches(region.Text ?? string.Empty, @"\d+");
-                                            foreach (System.Text.RegularExpressions.Match m in matches)
+                                        var matches = System.Text.RegularExpressions.Regex.Matches(region.Text ?? string.Empty, @"\d+");
+                                        foreach (System.Text.RegularExpressions.Match m in matches)
+                                        {
+                                            if (int.TryParse(m.Value, out int score) && score > performanceScore)
                                             {
-                                                if (int.TryParse(m.Value, out int score) && score > performanceScore)
-                                                {
-                                                    performanceScore = score;
-                                                    ClsLogger.LogScript($"步骤26: 车型候选 {i + 1} 识别到性能分: {score} (OCR文本: {region.Text}, 信度: {region.Score:F2})");
-                                                }
+                                                performanceScore = score;
+                                                ClsLogger.LogScript($"步骤26: 车型候选 {i + 1} 识别到性能分: {score} (OCR文本: {region.Text}, 信度: {region.Score:F2})");
                                             }
                                         }
                                     }
@@ -2262,20 +1983,16 @@ namespace FH_WPF
                 // 步骤31: 按 Enter (等 2 秒) → Enter (等 2 秒) → Enter
                 CheckCancel("步骤31");
                 ClsLogger.LogScript("步骤31: 按 Enter/等2秒/Enter/等2秒/Enter");
-                ClsLogicContorl_Ghub.ClickKey(Key.Enter);
-                Thread.Sleep(2000);
-                ClsLogicContorl_Ghub.ClickKey(Key.Enter);
-                Thread.Sleep(2000);
-                ClsLogicContorl_Ghub.ClickKey(Key.Enter);
-                Thread.Sleep(500);
+                ClickKeyAndWait(Key.Enter, 2000, nameof(GotoScriptRace));
+                ClickKeyAndWait(Key.Enter, 2000, nameof(GotoScriptRace));
+                ClickKeyAndWait(Key.Enter, 500, nameof(GotoScriptRace));
 
                 // 步骤32: 等待 15 秒，然后按 Enter
                 CheckCancel("步骤32");
                 ClsLogger.LogScript("步骤32: 等待 15 秒");
                 Thread.Sleep(15000);
                 ClsLogger.LogScript("步骤33: 按 Enter");
-                ClsLogicContorl_Ghub.ClickKey(Key.Enter);
-                Thread.Sleep(500);
+                ClickKeyAndWait(Key.Enter, 500, nameof(GotoScriptRace));
                 // 步骤34-44: 循环检测重新开始按钮，根据计算的循环次数执行
                 int currentPoints = techPoints;
                 bool raceComplete = false;
@@ -2326,7 +2043,7 @@ namespace FH_WPF
 
                     // 点数加上单局点数并检查是否完成
                     currentPoints += pointsPerRace;
-                    System.Windows.Application.Current.Dispatcher.Invoke(() => { DetectPoint?.Invoke(null, currentPoints); });
+                    System.Windows.Application.Current.Dispatcher.BeginInvoke(() => { DetectPoint?.Invoke(null, currentPoints); });
                     ClsLogger.LogScript($"步骤39: 技术点数更新为 {currentPoints}");
 
                     // 检查是否达到目标或已完成所有循环
@@ -2335,11 +2052,11 @@ namespace FH_WPF
                         // 已完成所有必需的循环
                         CheckCancel("步骤40");
                         ClsLogger.LogScript($"步骤40: 已完成 {loopCount} 次循环，点数: {currentPoints}，按 Enter 等待 20 秒");
-                        ClsLogicContorl_Ghub.ClickKey(Key.Enter);
-                        Thread.Sleep(20000);
+                        ClickKeyAndWait(Key.Enter, 20000, nameof(GotoScriptRace));
 
                         ClsLogger.LogScript("步骤41: 触发完成事件");
-                        System.Windows.Application.Current.Dispatcher.Invoke(() => { PointCompletionCompleted?.Invoke(null, EventArgs.Empty); });
+                        System.Windows.Application.Current.Dispatcher.BeginInvoke(() => { PointCompletionCompleted?.Invoke(null, EventArgs.Empty); });
+                        finished = true;
                         raceComplete = true;
                     }
                     else
@@ -2349,23 +2066,20 @@ namespace FH_WPF
                         ClsLogger.LogScript($"步骤42: 循环 {loopCount}/{loopsRequired}，点数 {currentPoints}，继续任务");
 
                         // 触发点数变更事件（直接在流程中触发）
-                        System.Windows.Application.Current.Dispatcher.Invoke(() => { DetectPoint?.Invoke(null, currentPoints); });
+                        System.Windows.Application.Current.Dispatcher.BeginInvoke(() => { DetectPoint?.Invoke(null, currentPoints); });
 
                         // 按 X 等待 400ms
-                        ClsLogicContorl_Ghub.ClickKey(Key.X);
-                        Thread.Sleep(400);
+                        ClickKeyAndWait(Key.X, 400, nameof(GotoScriptRace));
 
                         // 按 Enter
-                        ClsLogicContorl_Ghub.ClickKey(Key.Enter);
-                        Thread.Sleep(100);
+                        ClickKeyAndWait(Key.Enter, 100, nameof(GotoScriptRace));
 
                         // 等待 8 秒
                         ClsLogger.LogScript("步骤43: 等待 8 秒");
                         Thread.Sleep(8000);
 
                         // 按 Enter
-                        ClsLogicContorl_Ghub.ClickKey(Key.Enter);
-                        Thread.Sleep(300);
+                        ClickKeyAndWait(Key.Enter, 300, nameof(GotoScriptRace));
 
                         // 继续循环
                         ClsLogger.LogScript("步骤44: 继续循环，返回检测流程");
@@ -2393,6 +2107,13 @@ namespace FH_WPF
             {
                 ClsLogger.LogScript($"GotoScriptRace: 发生异常 - {ex.Message}");
                 Debug.WriteLine($"GotoScriptRace Exception: {ex}");
+            }
+            finally
+            {
+                if (!finished)
+                {
+                    try { System.Windows.Application.Current.Dispatcher.BeginInvoke(() => { PointCompletionCompleted?.Invoke(null, EventArgs.Empty); }); } catch { }
+                }
             }
         }
 
@@ -2501,7 +2222,7 @@ namespace FH_WPF
 
         [DllImport("imm32.dll")]
         private static extern bool ImmSetConversionStatus(IntPtr hIMC, int conversion, int sentence);
-        
+
         [DllImport("user32.dll", CharSet = CharSet.Auto)]
         private static extern bool PostMessage(IntPtr hWnd, int Msg, int wParam, int lParam);
 
@@ -2646,7 +2367,8 @@ namespace FH_WPF
                 ClsLogicContorl_Ghub.Move(-4096, -4096);
                 ClsLogicContorl_Ghub.Move(clickX, clickY, true);
                 Thread.Sleep(100);
-                ClsLogicContorl_Ghub.ClickMouse(1);
+                // 使用统一的点击与等待封装，便于日志与行为一致
+                ClickMouseAndWait(1, 100, logTag);
                 Debug.WriteLine($"x = {clickX} y = {clickY}");
                 return true;
             }

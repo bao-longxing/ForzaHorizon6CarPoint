@@ -147,7 +147,7 @@
                 <Border Grid.Column="0" Style="{StaticResource CardBorderStyle}" Margin="0,0,478,10">
                     <Grid>
                         <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="90"/>
+                            <ColumnDefinition Width="120"/>
                             <ColumnDefinition Width="*"/>
                         </Grid.ColumnDefinitions>
                         <Grid.RowDefinitions>
@@ -159,7 +159,7 @@
                         </Grid.RowDefinitions>
 
                         <TextBlock Text="🚗 车辆信息" Grid.ColumnSpan="2" Foreground="{StaticResource TextBrush}" FontWeight="SemiBold" Margin="0,0,0,10"/>
-                        <TextBlock Text="车辆性能分" Grid.Row="1" Foreground="{StaticResource SubTextBrush}" VerticalAlignment="Center"/>
+                        <TextBlock Text="车辆性能分(用于删除)" Grid.Row="1" Foreground="{StaticResource SubTextBrush}" VerticalAlignment="Center"/>
                         <TextBox x:Name="txtCarScore" Grid.Row="1" Grid.Column="1" Height="34" Background="#0A1322" Foreground="#DDE8FF" BorderBrush="#2A3A56" Text="600" VerticalContentAlignment="Center"/>
                         <TextBlock Text="车辆厂商" Grid.Row="2" Foreground="{StaticResource SubTextBrush}" VerticalAlignment="Center"/>
                         <TextBox x:Name="txtCarFactory" Grid.Row="2" Grid.Column="1" Height="34" Background="#0A1322" Foreground="#DDE8FF" BorderBrush="#2A3A56" Text="斯巴鲁" UseLayoutRounding="False" VerticalContentAlignment="Center"/>
@@ -176,18 +176,18 @@
                             <TextBlock Text="购买数量" Foreground="{StaticResource SubTextBrush}" VerticalAlignment="Center" Margin="0,0,6,0"/>
                             <TextBox x:Name="txtBuyCarNum" Width="44" Height="24" Background="#FF0A1322" BorderBrush="#FF2A3A56" Foreground="#FFDDE8FF" Text="33" VerticalContentAlignment="Center"/>
 
-                            <!-- 1. 改为 Label，显示快捷键提示 F7，颜色保持不变 -->
+                            <!-- 1. 改为 Label，显示快捷键提示 F6，颜色保持不变 -->
                             <Label x:Name="lblBuyFromCollection" 
-                                   Content="🟢 从收集簿购买 (F7)" 
+                                   Content="🟢 从收集簿购买 (F6)" 
                                    Style="{StaticResource ActionLabelStyle}"
                                    Background="#2E7D32" 
                                    Foreground="White" 
                                    Width="125" 
                                    Margin="0,0,10,0"/>
 
-                            <!-- 2. 改为 Label，显示快捷键提示 F6，颜色保持不变 -->
+                            <!-- 2. 改为 Label，显示快捷键提示 F7，颜色保持不变 -->
                             <Label x:Name="lblDelectCar" 
-                                   Content="🗑 从车库中移除 (F6)" 
+                                   Content="🗑 从车库中移除 (F7)" 
                                    Style="{StaticResource ActionLabelStyle}"
                                    Background="#7F1F2F"
                                    BorderBrush="#A9364D"
@@ -242,9 +242,9 @@
                         <TextBlock Text="🧬 蓝图脚本" Foreground="{StaticResource TextBrush}" FontWeight="SemiBold" Margin="0,0,0,10"/>
                         <DockPanel Grid.Row="1" Margin="0,0,0,10">
                                 <StackPanel Orientation="Horizontal" DockPanel.Dock="Left" Cursor="Hand">
-                                <Label x:Name="lblGotoRace" Content="按下F9开始" Style="{StaticResource ActionLabelStyle}" Width="80" Height="25"/>
+                                <Label x:Name="lblGotoRace" Content="按下F8开始" Style="{StaticResource ActionLabelStyle}" Width="80" Height="25"/>
                                 <Label Content="蓝图代码：" Cursor="" Foreground="#FFCAD6F6" VerticalAlignment="Center"/>
-                                <TextBox x:Name="txtScriptCode" TextWrapping="Wrap" Text="890169683" Width="120" Background="#FF1B273B" Foreground="#FFCAD6F6" BorderBrush="#FF32445F" VerticalAlignment="Center"/>
+                                <TextBox x:Name="txtScriptCode" TextWrapping="Wrap" Text="503944655" Width="120" Background="#FF1B273B" Foreground="#FFCAD6F6" BorderBrush="#FF32445F" VerticalAlignment="Center"/>
                                 <!-- 新增：单局点数 -->
                                 <Label Content="单局点数：" Foreground="#FFCAD6F6" VerticalAlignment="Center" Margin="8,0,0,0"/>
                                 <TextBox x:Name="txtSinglePoint" Width="80" Text="9" Background="#FF1B273B" Foreground="#FFCAD6F6" BorderBrush="#FF32445F" VerticalAlignment="Center" Margin="4,0,0,0"/>
@@ -294,7 +294,7 @@
                         <TextBlock Text="✨ 消耗所有车辆热练度" Foreground="{StaticResource TextBrush}" FontWeight="SemiBold" Margin="0,0,0,10"/>
                         <DockPanel Grid.Row="1" Margin="0,0,0,10">
                             <StackPanel Orientation="Horizontal" DockPanel.Dock="Left">
-                                <Label x:Name="lblPoint" Content="按下F8开始" Style="{StaticResource ActionLabelStyle}" Width="80" Height="25" Background="#DE7F23" BorderBrush="#F39A45"/>
+                                <Label x:Name="lblPoint" Content="按下F9开始" Style="{StaticResource ActionLabelStyle}" Width="80" Height="25" Background="#DE7F23" BorderBrush="#F39A45"/>
                             </StackPanel>
                             <StackPanel Orientation="Horizontal" DockPanel.Dock="Right" HorizontalAlignment="Right">
                                 <TextBlock Text="预估时间：--:--" Foreground="{StaticResource SubTextBrush}" VerticalAlignment="Center"/>
@@ -340,10 +340,9 @@
                 <StackPanel>
                     <TextBlock Text="⚡ 快捷功能" Foreground="{StaticResource TextBrush}" FontWeight="SemiBold" Margin="0,0,0,10"/>
                     <WrapPanel>
-                        <Button Content="OBS" Click="Button_Click" Style="{StaticResource SecondaryButtonStyle}" Width="120"/>
+                        <Button x:Name="btnOBSSettings" Content="OBS" Click="btnOBSSettings_Click" Style="{StaticResource SecondaryButtonStyle}" Width="120"/>
                         <Button Content="KeyBoard" Click="Button_Click_1" Style="{StaticResource SecondaryButtonStyle}" Width="120"/>
                         <Button x:Name="btnOCRTest" Content="OCR" Click="btnOCRTest_Click" Style="{StaticResource SecondaryButtonStyle}" Width="120"/>
-                        <Button x:Name="btnTestGameControl" Content="消耗技能点脚本测试" Style="{StaticResource SecondaryButtonStyle}" Width="140" Click="btnTestGameControl_Click"/>
                         <Button x:Name="btnTestBycar" Content="买车脚本测试" Style="{StaticResource SecondaryButtonStyle}" Width="140" Click="btnTestBycar_Click"/>
                         <Button x:Name="btnROI" Content="ROI" Style="{StaticResource SecondaryButtonStyle}" Width="120" Click="btnROI_Click"/>
                         <Button x:Name="btnMousePos" Content="MousePos" Style="{StaticResource SecondaryButtonStyle}" Width="140" Click="btnMousePos_Click"/>
