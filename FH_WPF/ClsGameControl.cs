@@ -391,14 +391,8 @@ namespace FH_WPF
 
         public static bool CheckUpvote()
         {
-            //检测是否出现点赞框
             bool rst = TryRecognizeAndClickROI(ClsROI.UIElem.整页, "评价", shouldClick: false, debug: false);
-            if (rst)
-            {
-                rst &= TryRecognizeAndClickROI(ClsROI.UIElem.整页, "取消", shouldClick: true, debug: false);
-            }
-            //点击后等待退出
-            Thread.Sleep(9000);
+            rst &= TryRecognizeAndClickROI(ClsROI.UIElem.整页, "点赞", shouldClick: true, debug: false);
             return rst;
         }
 
