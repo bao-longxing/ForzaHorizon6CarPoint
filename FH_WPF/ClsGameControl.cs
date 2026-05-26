@@ -388,11 +388,16 @@ namespace FH_WPF
         #endregion
 
         #region 功能: 高级操作
-
         public static bool CheckUpvote()
         {
+            //检测是否出现点赞框
             bool rst = TryRecognizeAndClickROI(ClsROI.UIElem.整页, "评价", shouldClick: false, debug: false);
-            rst &= TryRecognizeAndClickROI(ClsROI.UIElem.整页, "点赞", shouldClick: true, debug: false);
+            if (rst)
+            {
+                rst &= TryRecognizeAndClickROI(ClsROI.UIElem.整页, "取消", shouldClick: true, debug: false);
+            }
+            //点击后等待退出
+            Thread.Sleep(9000);
             return rst;
         }
 
