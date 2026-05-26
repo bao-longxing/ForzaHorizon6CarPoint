@@ -16,9 +16,9 @@ namespace FH_WPF
         public static event EventHandler? BlueprintExecutionStarted;
 
         /// <summary>
-        /// 点数完成事件（点数达到或超过999）
+        /// 点数完成事件（点数达到或超时）
         /// </summary>
-        public static event EventHandler? PointCompletionCompleted;
+        public static event EventHandler<bool>? PointCompletionCompleted;
 
         /// <summary>
         /// 消耗点数开始事件（用于定时）
@@ -388,6 +388,14 @@ namespace FH_WPF
         #endregion
 
         #region 功能: 高级操作
+
+        public static bool CheckUpvote()
+        {
+            bool rst = TryRecognizeAndClickROI(ClsROI.UIElem.整页, "评价", shouldClick: false, debug: false);
+            rst &= TryRecognizeAndClickROI(ClsROI.UIElem.整页, "点赞", shouldClick: true, debug: false);
+            return rst;
+        }
+
         /// <summary>
         /// 进入游戏并发送回车键（高层操作）。
         /// </summary>
@@ -2038,6 +2046,9 @@ namespace FH_WPF
                     if (!restartButtonDetected)
                     {
                         ClsLogger.LogScript("步骤38: 2分钟内未检测到重新开始按钮，任务超时");
+
+
+                        finished = false;
                         break;
                     }
 
@@ -2055,7 +2066,6 @@ namespace FH_WPF
                         ClickKeyAndWait(Key.Enter, 20000, nameof(GotoScriptRace));
 
                         ClsLogger.LogScript("步骤41: 触发完成事件");
-                        System.Windows.Application.Current.Dispatcher.BeginInvoke(() => { PointCompletionCompleted?.Invoke(null, EventArgs.Empty); });
                         finished = true;
                         raceComplete = true;
                     }
@@ -2112,7 +2122,7 @@ namespace FH_WPF
             {
                 if (!finished)
                 {
-                    try { System.Windows.Application.Current.Dispatcher.BeginInvoke(() => { PointCompletionCompleted?.Invoke(null, EventArgs.Empty); }); } catch { }
+                    try { System.Windows.Application.Current.Dispatcher.BeginInvoke(() => { PointCompletionCompleted?.Invoke(null, false); }); } catch { }
                 }
             }
         }

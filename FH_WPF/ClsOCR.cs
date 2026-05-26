@@ -3,7 +3,7 @@ using Sdcb.PaddleInference;
 using Sdcb.PaddleOCR;
 using Sdcb.PaddleOCR.Models;
 using Sdcb.PaddleOCR.Models.Local;
-using System;
+using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Net.Http;
 
@@ -11,113 +11,123 @@ namespace FH_WPF
 {
     internal static class ClsOCR
     {
-        private static readonly object _initLock = new object();
-        private static PaddleOcrAll? _ocrAll = null;
-        private static FullOcrModel _defaultModel = LocalFullModels.ChineseV3;
+        // 池的最大并发实例数，默认取逻辑核心数（上限 8）
+        //private static readonly int PoolSize = Math.Min(Environment.ProcessorCount, 8);
+        private static readonly int PoolSize = 3;
 
-        // 初始化 OCR（首次调用会创建实例，后续复用）
+        private static readonly ConcurrentQueue<PaddleOcrAll> _pool = new();
+        private static readonly SemaphoreSlim _semaphore = new(0);
+        private static readonly object _initLock = new();
+        private static FullOcrModel _defaultModel = LocalFullModels.ChineseV3;
+        private static bool _initialized = false;
+
+        /// <summary>预初始化 OCR 池（首次调用会创建全部实例，后续复用）</summary>
         public static void Initialize(FullOcrModel? model = null)
         {
             lock (_initLock)
             {
-                EnsureInitialized(model);
+                EnsurePoolFilled(model);
             }
         }
 
-        // 释放资源（程序退出时可调用）
+        /// <summary>释放全部池中实例（程序退出时调用）</summary>
         public static void Dispose()
         {
             lock (_initLock)
             {
-                if (_ocrAll != null)
-                {
-                    _ocrAll.Dispose();
-                    _ocrAll = null;
-                }
+                _initialized = false;
+                while (_pool.TryDequeue(out var instance))
+                    instance.Dispose();
             }
         }
 
-        // 从字节数组识别图片中的文本
+        /// <summary>从字节数组识别图片中的文本</summary>
         public static PaddleOcrResult RecognizeFromBytes(byte[] imageData)
         {
-            if (imageData == null) throw new ArgumentNullException(nameof(imageData));
+            ArgumentNullException.ThrowIfNull(imageData);
 
             lock (_initLock)
             {
-                EnsureInitialized();
-                try
-                {
-                    return RecognizeOnce(imageData);
-                }
-                catch (Exception ex) when (IsDetectorRunFailed(ex))
-                {
-                    Debug.WriteLine($"OCR detector failed, recreating predictor: {ex.Message}");
-                    RecreatePredictor();
-                    return RecognizeOnce(imageData);
-                }
+                EnsurePoolFilled();
+            }
+
+            // 从池中借出一个实例
+            _semaphore.Wait();
+            if (!_pool.TryDequeue(out var ocr))
+                throw new InvalidOperationException("OCR 池状态异常");
+
+            try
+            {
+                return RecognizeOnce(ocr, imageData);
+            }
+            catch (Exception ex) when (IsDetectorRunFailed(ex))
+            {
+                Debug.WriteLine($"OCR detector failed, recreating predictor: {ex.Message}");
+                ocr.Dispose();
+                ocr = CreateInstance();
+                return RecognizeOnce(ocr, imageData);
+            }
+            finally
+            {
+                // 归还实例到池
+                _pool.Enqueue(ocr);
+                _semaphore.Release();
             }
         }
 
-        // 从 base64 字符串识别（适用于 GetSourceScreenshot 返回的数据）
+        /// <summary>从 base64 字符串识别（适用于 GetSourceScreenshot 返回的数据）</summary>
         public static PaddleOcrResult RecognizeFromBase64(string base64Image)
         {
             if (string.IsNullOrEmpty(base64Image)) throw new ArgumentNullException(nameof(base64Image));
             var idx = base64Image.IndexOf("base64,", StringComparison.OrdinalIgnoreCase);
             if (idx >= 0)
-            {
-                base64Image = base64Image.Substring(idx + "base64,".Length);
-            }
-            var bytes = Convert.FromBase64String(base64Image);
-            return RecognizeFromBytes(bytes);
+                base64Image = base64Image[(idx + "base64,".Length)..];
+            return RecognizeFromBytes(Convert.FromBase64String(base64Image));
         }
 
-        // 示例：下载远程图片并识别（保留以便测试）
+        /// <summary>下载远程图片并识别</summary>
         public static PaddleOcrResult RecognizeFromUrl(string url)
         {
             if (string.IsNullOrEmpty(url)) throw new ArgumentNullException(nameof(url));
-            using (HttpClient http = new HttpClient())
-            {
-                byte[] data = http.GetByteArrayAsync(url).GetAwaiter().GetResult();
-                return RecognizeFromBytes(data);
-            }
+            using HttpClient http = new();
+            byte[] data = http.GetByteArrayAsync(url).GetAwaiter().GetResult();
+            return RecognizeFromBytes(data);
         }
 
-        private static void EnsureInitialized(FullOcrModel? model = null)
+        private static void EnsurePoolFilled(FullOcrModel? model = null)
         {
-            if (_ocrAll != null) return;
-            var useModel = model ?? _defaultModel;
-            _ocrAll = new PaddleOcrAll(useModel, PaddleDevice.Mkldnn())
+            if (_initialized) return;
+            _defaultModel = model ?? _defaultModel;
+            for (int i = 0; i < PoolSize; i++)
+            {
+                _pool.Enqueue(CreateInstance());
+            }
+            _semaphore.Release(PoolSize);
+            _initialized = true;
+        }
+
+        private static PaddleOcrAll CreateInstance()
+        {
+            PaddleConfig config = new PaddleConfig()
+            {
+                MkldnnEnabled = true,
+                MkldnnCacheCapacity = 20,
+                CpuMathThreadCount = 4
+            };
+
+            return new PaddleOcrAll(_defaultModel, PaddleDevice.Mkldnn())
             {
                 AllowRotateDetection = false,
                 Enable180Classification = false,
             };
         }
 
-        private static void RecreatePredictor()
-        {
-            if (_ocrAll != null)
-            {
-                _ocrAll.Dispose();
-                _ocrAll = null;
-            }
-
-            EnsureInitialized();
-        }
-
-        private static PaddleOcrResult RecognizeOnce(byte[] imageData)
+        private static PaddleOcrResult RecognizeOnce(PaddleOcrAll ocr, byte[] imageData)
         {
             using var src = Cv2.ImDecode(imageData, ImreadModes.Color);
             if (src.Empty())
-            {
                 throw new ArgumentException("无法解码 OCR 图片数据", nameof(imageData));
-            }
-
-            if (_ocrAll == null)
-            {
-                throw new InvalidOperationException("OCR 未初始化");
-            }
-
-            return _ocrAll.Run(src);
+            return ocr.Run(src);
         }
 
         private static bool IsDetectorRunFailed(Exception ex)
@@ -131,7 +141,6 @@ namespace FH_WPF
                     return true;
                 }
             }
-
             return false;
         }
     }

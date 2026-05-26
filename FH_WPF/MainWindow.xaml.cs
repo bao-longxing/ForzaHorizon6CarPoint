@@ -1,11 +1,11 @@
 ﻿using OpenCvSharp;
 using System.Diagnostics;
-using System.Windows;
-using System.Windows.Input;
-using System.Windows.Threading;
-using System.Windows.Media;
 using System.IO;
 using System.Text.Json;
+using System.Windows;
+using System.Windows.Input;
+using System.Windows.Media;
+using System.Windows.Threading;
 
 namespace FH_WPF
 {
@@ -90,8 +90,17 @@ namespace FH_WPF
             {
                 if (!string.IsNullOrWhiteSpace(_obsIp) && _obsPort > 0)
                 {
-                    ClsObs.ConnectAsync(_obsIp, _obsPort, _obsPassword ?? string.Empty).GetAwaiter().GetResult();
-                    AppendLog("[信息] OBS 已按配置初始化");
+                    // 捕获连接结果并立即更新 UI，避免仅依赖事件回调导致状态不同步的情况
+                    try
+                    {
+                        var ok = ClsObs.ConnectAsync(_obsIp, _obsPort, _obsPassword ?? string.Empty).GetAwaiter().GetResult();
+                        AppendLog(ok ? "[信息] OBS 已按配置初始化并已连接" : "[信息] OBS 已按配置初始化但未连接");
+                        UpdateObsStateUI(ok);
+                    }
+                    catch (Exception exInner)
+                    {
+                        AppendLog($"[错误] OBS 初始化失败: {exInner.Message}");
+                    }
                 }
             }
             catch (Exception ex)
@@ -306,7 +315,7 @@ namespace FH_WPF
             }
         }
 
-        private void Auto_PointCompletionCompleted(object? sender, EventArgs e)
+        private void Auto_PointCompletionCompleted(object? sender, bool needRepeat)
         {
             try
             {
@@ -378,9 +387,9 @@ namespace FH_WPF
                 return;
             }
 
-            if (e.Key == Key.F8)
+            if (e.Key == Key.F9)
             {
-                // F8: 蓝图脚本
+                // F9: 蓝图脚本
                 AppendLog("[信息] 脚本赛车测试 按钮点击");
                 AppendScriptLog("[测试] 启动 GotoScriptRace 测试");
 
@@ -400,9 +409,9 @@ namespace FH_WPF
                     AppendLog("[错误] 启动脚本赛车失败: " + ex.Message);
                 }
             }
-            else if (e.Key == Key.F9)
+            else if (e.Key == Key.F7)
             {
-                // F9: 与 lblPoint 一致的行为：开始消耗点数
+                // F7: 与 lblPoint 一致的行为：开始消耗点数
                 UpCarIsAllComplete = false;
                 AppendPointLog($"[{DateTime.Now:HH:mm:ss}] 开始消耗点数...");
                 try
@@ -448,9 +457,9 @@ namespace FH_WPF
                     AppendLog("[错误] 启动买车失败: " + ex.Message);
                 }
             }
-            else if (e.Key == Key.F7)
+            else if (e.Key == Key.F8)
             {
-                // F7: 从车库中移除
+                // F8: 从车库中移除
                 try
                 {
                     AppendLog($"[{DateTime.Now:HH:mm:ss}] 开始移除车辆...");
@@ -503,7 +512,7 @@ namespace FH_WPF
         /// <summary>
         /// 点数完成事件处理（点数达到999）
         /// </summary>
-        private void OnPointCompletionCompleted(object? sender, EventArgs e)
+        private void OnPointCompletionCompleted(object? sender, bool needRepeat)
         {
             try
             {
@@ -822,7 +831,11 @@ namespace FH_WPF
                         try
                         {
                             var ok = await ClsObs.ConnectAsync(_obsIp!, _obsPort, _obsPassword ?? string.Empty);
-                            Dispatcher.Invoke(() => AppendLog(ok ? "[信息] OBS 连接成功" : "[信息] OBS 连接失败"));
+                            Dispatcher.Invoke(() =>
+                            {
+                                AppendLog(ok ? "[信息] OBS 连接成功" : "[信息] OBS 连接失败");
+                                try { UpdateObsStateUI(ok); } catch { }
+                            });
                         }
                         catch (Exception ex)
                         {
