@@ -27,8 +27,21 @@ namespace FH_WPF
         private const int PointModeSingleLoopPoint = 30;
         private ClsKeyboardHook? _keyboardHook;
         private bool UpCarIsAllComplete = false;
-        // 自动化管理器开关
+
+        private enum AutoManagerState
+        {
+            Idle,
+            ScriptRaceRunning,
+            BuyCarRunning,
+            UpCarPointRunning,
+            DeleteCarRunning
+        }
+
+        // 自动化管理器状态机
         private bool _autoManagerEnabled = false;
+        private AutoManagerState _autoManagerState = AutoManagerState.Idle;
+        private readonly object _autoManagerLock = new();
+        private CancellationTokenSource? _upvoteMonitorCts;
         #endregion
 
         #region OBS 界面更新
@@ -271,61 +284,123 @@ namespace FH_WPF
 
         #region 自动化管理器
         /// <summary>
-        /// 自动化管理：接收各类事件并自动调用 ClsGameControl 执行动作
-        /// 通过 F5 切换启用/禁用
+        /// 启用自动化状态机：
+        /// 蓝图开始 -> 蓝图结束(needRepeat?重试:进入买车) -> 买车完成 -> 消耗开始/结束 -> 移除完成 -> 回到蓝图
+        /// 并启动长期点赞检测。
         /// </summary>
         private void EnableAutoManager()
         {
-            if (_autoManagerEnabled) return;
-            _autoManagerEnabled = true;
-            UpCarIsAllComplete = false;
-            // 订阅事件
-            ClsGameControl.AllCarPointComplete += Auto_AllCarPointComplete;
+            lock (_autoManagerLock)
+            {
+                if (_autoManagerEnabled)
+                {
+                    return;
+                }
+
+                _autoManagerEnabled = true;
+                _autoManagerState = AutoManagerState.Idle;
+                UpCarIsAllComplete = false;
+            }
+
+            ClsGameControl.BlueprintExecutionStarted += Auto_BlueprintExecutionStarted;
             ClsGameControl.PointCompletionCompleted += Auto_PointCompletionCompleted;
             ClsGameControl.BuyCarCompleted += Auto_BuyCarCompleted;
-            ClsGameControl.BlueprintExecutionStarted += Auto_BlueprintExecutionStarted;
+            ClsGameControl.UpCarPointBegin += Auto_UpCarPointBegin;
+            ClsGameControl.AllCarPointComplete += Auto_AllCarPointComplete;
+            ClsGameControl.DeleteCarCompleted += Auto_DeleteCarCompleted;
+
+            _upvoteMonitorCts = new CancellationTokenSource();
+            _ = Task.Run(() => AutoMonitorUpvoteLoop(_upvoteMonitorCts.Token));
+
+            AppendLog("[自动] 自动化状态机已启用");
+            StartScriptRaceFromStateMachine();
         }
 
+        /// <summary>
+        /// 关闭自动化状态机并取消后台点赞检测，同时解除所有自动化事件订阅。
+        /// </summary>
         private void DisableAutoManager()
         {
-            if (!_autoManagerEnabled) return;
-            _autoManagerEnabled = false;
-            try { ClsGameControl.AllCarPointComplete -= Auto_AllCarPointComplete; } catch { }
+            CancellationTokenSource? ctsToCancel = null;
+
+            lock (_autoManagerLock)
+            {
+                if (!_autoManagerEnabled)
+                {
+                    return;
+                }
+
+                _autoManagerEnabled = false;
+                _autoManagerState = AutoManagerState.Idle;
+                ctsToCancel = _upvoteMonitorCts;
+                _upvoteMonitorCts = null;
+            }
+
+            try { ctsToCancel?.Cancel(); } catch { }
+            try { ctsToCancel?.Dispose(); } catch { }
+
+            try { ClsGameControl.BlueprintExecutionStarted -= Auto_BlueprintExecutionStarted; } catch { }
             try { ClsGameControl.PointCompletionCompleted -= Auto_PointCompletionCompleted; } catch { }
             try { ClsGameControl.BuyCarCompleted -= Auto_BuyCarCompleted; } catch { }
-            try { ClsGameControl.BlueprintExecutionStarted -= Auto_BlueprintExecutionStarted; } catch { }
+            try { ClsGameControl.UpCarPointBegin -= Auto_UpCarPointBegin; } catch { }
+            try { ClsGameControl.AllCarPointComplete -= Auto_AllCarPointComplete; } catch { }
+            try { ClsGameControl.DeleteCarCompleted -= Auto_DeleteCarCompleted; } catch { }
+
+            AppendLog("[自动] 自动化状态机已关闭");
         }
 
-        private void Auto_AllCarPointComplete(object? sender, EventArgs e)
+        /// <summary>
+        /// 处理蓝图执行开始事件，并同步自动化状态为蓝图运行中。
+        /// </summary>
+        private void Auto_BlueprintExecutionStarted(object? sender, EventArgs e)
         {
             try
             {
-                AppendLog("[自动] 所有车辆点数完成事件收到");
-                UpCarIsAllComplete = true;
-                // 当所有车辆完成时，可选择停用自动管理器
-                if (_autoManagerEnabled)
+                lock (_autoManagerLock)
                 {
-                    AppendLog("[自动] 检测到所有车辆点数完成，自动化管理器将停止");
-                    DisableAutoManager();
+                    if (!_autoManagerEnabled)
+                    {
+                        return;
+                    }
+
+                    _autoManagerState = AutoManagerState.ScriptRaceRunning;
                 }
+
+                AppendLog("[自动] 状态 -> ScriptRaceRunning（蓝图执行开始）");
             }
             catch (Exception ex)
             {
-                AppendLog($"[错误] Auto_AllCarPointComplete: {ex.Message}");
+                AppendLog($"[错误] Auto_BlueprintExecutionStarted: {ex.Message}");
             }
         }
 
+        /// <summary>
+        /// 处理蓝图完成事件：根据是否需要重试决定重跑蓝图或进入买车流程。
+        /// </summary>
         private void Auto_PointCompletionCompleted(object? sender, bool needRepeat)
         {
             try
             {
-                AppendLog("[自动] 总点数达到完成阈值事件收到");
-                // 当整体点数达到目标时，停止自动化并记录
-                if (_autoManagerEnabled)
+                bool enabled;
+                lock (_autoManagerLock)
                 {
-                    AppendLog("[自动] 点数已达上限，自动化管理器已停止");
-                    DisableAutoManager();
+                    enabled = _autoManagerEnabled;
                 }
+
+                if (!enabled)
+                {
+                    return;
+                }
+
+                if (needRepeat)
+                {
+                    AppendLog("[自动] 蓝图结束，needRepeat=true，重试蓝图流程");
+                    StartScriptRaceFromStateMachine();
+                    return;
+                }
+
+                AppendLog("[自动] 蓝图结束，进入买车流程");
+                StartBuyCarFromStateMachine();
             }
             catch (Exception ex)
             {
@@ -333,12 +408,26 @@ namespace FH_WPF
             }
         }
 
+        /// <summary>
+        /// 处理买车完成事件，并推进到消耗点数流程。
+        /// </summary>
         private void Auto_BuyCarCompleted(object? sender, EventArgs e)
         {
             try
             {
-                AppendLog("[自动] 买车完成事件收到");
-                // 可扩展：购买完成后执行下一步操作
+                bool enabled;
+                lock (_autoManagerLock)
+                {
+                    enabled = _autoManagerEnabled;
+                }
+
+                if (!enabled)
+                {
+                    return;
+                }
+
+                AppendLog("[自动] 买车完成，进入消耗点数流程");
+                StartUpCarPointFromStateMachine();
             }
             catch (Exception ex)
             {
@@ -346,16 +435,257 @@ namespace FH_WPF
             }
         }
 
-        private void Auto_BlueprintExecutionStarted(object? sender, EventArgs e)
+        /// <summary>
+        /// 处理消耗点数开始事件，并更新自动化状态。
+        /// </summary>
+        private void Auto_UpCarPointBegin(object? sender, EventArgs e)
         {
             try
             {
-                AppendLog("[自动] 蓝图执行开始事件收到");
-                // 可扩展：在蓝图开始时触发自动化首步
+                lock (_autoManagerLock)
+                {
+                    if (!_autoManagerEnabled)
+                    {
+                        return;
+                    }
+
+                    _autoManagerState = AutoManagerState.UpCarPointRunning;
+                }
+
+                AppendLog("[自动] 状态 -> UpCarPointRunning（开始消耗点数）");
             }
             catch (Exception ex)
             {
-                AppendLog($"[错误] Auto_BlueprintExecutionStarted: {ex.Message}");
+                AppendLog($"[错误] Auto_UpCarPointBegin: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// 处理全部车辆点数消耗完成事件，并进入移除车辆流程。
+        /// </summary>
+        private void Auto_AllCarPointComplete(object? sender, EventArgs e)
+        {
+            try
+            {
+                bool enabled;
+                lock (_autoManagerLock)
+                {
+                    enabled = _autoManagerEnabled;
+                }
+
+                if (!enabled)
+                {
+                    return;
+                }
+
+                UpCarIsAllComplete = true;
+                AppendLog("[自动] 消耗点数完成，进入移除流程");
+                StartDeleteCarFromStateMachine();
+            }
+            catch (Exception ex)
+            {
+                AppendLog($"[错误] Auto_AllCarPointComplete: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// 处理移除车辆完成事件，并回到蓝图流程继续循环。
+        /// </summary>
+        private void Auto_DeleteCarCompleted(object? sender, EventArgs e)
+        {
+            try
+            {
+                bool enabled;
+                lock (_autoManagerLock)
+                {
+                    enabled = _autoManagerEnabled;
+                }
+
+                if (!enabled)
+                {
+                    return;
+                }
+
+                AppendLog("[自动] 移除完成，回到蓝图流程");
+                StartScriptRaceFromStateMachine();
+            }
+            catch (Exception ex)
+            {
+                AppendLog($"[错误] Auto_DeleteCarCompleted: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// 从状态机触发蓝图脚本流程并切换到蓝图运行状态。
+        /// </summary>
+        private void StartScriptRaceFromStateMachine()
+        {
+            string scriptCode = string.Empty;
+            string factory = string.Empty;
+            string type = string.Empty;
+            int point = 1;
+
+            Dispatcher.Invoke(() =>
+            {
+                scriptCode = txtScriptCode.Text;
+                factory = txtCarFactory.Text;
+                type = txtCarType.Text;
+                point = ParseSingleRacePoint();
+            });
+
+            lock (_autoManagerLock)
+            {
+                if (!_autoManagerEnabled)
+                {
+                    return;
+                }
+
+                _autoManagerState = AutoManagerState.ScriptRaceRunning;
+            }
+
+            RunBackground(() => ClsGameControl.GotoScriptRace(scriptCode, factory, type, point, debug: false),
+                startLog: "[自动] 启动蓝图流程",
+                cancelLog: "[自动] 蓝图流程已取消",
+                errorPrefix: "自动蓝图流程失败");
+        }
+
+        /// <summary>
+        /// 从状态机触发买车流程并切换到买车运行状态。
+        /// </summary>
+        private void StartBuyCarFromStateMachine()
+        {
+            int buyCount = 1;
+            string factory = string.Empty;
+            string type = string.Empty;
+
+            Dispatcher.Invoke(() =>
+            {
+                buyCount = int.TryParse(txtBuyCarNum.Text, out var parsedCount) && parsedCount > 0 ? parsedCount : 1;
+                factory = txtCarFactory.Text;
+                type = txtCarType.Text;
+            });
+
+            lock (_autoManagerLock)
+            {
+                if (!_autoManagerEnabled)
+                {
+                    return;
+                }
+
+                _autoManagerState = AutoManagerState.BuyCarRunning;
+            }
+
+            RunBackground(() => ClsGameControl.BuyCar(buyCount, factory, type, false),
+                startLog: "[自动] 启动买车流程",
+                cancelLog: "[自动] 买车流程已取消",
+                errorPrefix: "自动买车流程失败");
+        }
+
+        /// <summary>
+        /// 从状态机触发消耗点数流程并切换到点数消耗状态。
+        /// </summary>
+        private void StartUpCarPointFromStateMachine()
+        {
+            string factory = string.Empty;
+            string type = string.Empty;
+
+            Dispatcher.Invoke(() =>
+            {
+                factory = txtCarFactory.Text;
+                type = txtCarType.Text;
+            });
+
+            lock (_autoManagerLock)
+            {
+                if (!_autoManagerEnabled)
+                {
+                    return;
+                }
+
+                _autoManagerState = AutoManagerState.UpCarPointRunning;
+            }
+
+            RunBackground(() => ClsGameControl.UpCarPoint(factory, type, false),
+                startLog: "[自动] 启动消耗点数流程",
+                cancelLog: "[自动] 消耗点数流程已取消",
+                errorPrefix: "自动消耗点数流程失败");
+        }
+
+        /// <summary>
+        /// 从状态机触发移除车辆流程并切换到移除运行状态。
+        /// </summary>
+        private void StartDeleteCarFromStateMachine()
+        {
+            string factory = string.Empty;
+            string type = string.Empty;
+            string score = string.Empty;
+
+            Dispatcher.Invoke(() =>
+            {
+                factory = txtCarFactory.Text;
+                type = txtCarType.Text;
+                score = txtCarScore?.Text ?? string.Empty;
+            });
+
+            lock (_autoManagerLock)
+            {
+                if (!_autoManagerEnabled)
+                {
+                    return;
+                }
+
+                _autoManagerState = AutoManagerState.DeleteCarRunning;
+            }
+
+            RunBackground(() => ClsGameControl.DeleteCar(factory, type, score, false),
+                startLog: "[自动] 启动移除流程",
+                cancelLog: "[自动] 移除流程已取消",
+                errorPrefix: "自动移除流程失败");
+        }
+
+        /// <summary>
+        /// 在后台循环检测点赞入口，直到自动化关闭或收到取消信号。
+        /// </summary>
+        private async Task AutoMonitorUpvoteLoop(CancellationToken cancellationToken)
+        {
+            while (!cancellationToken.IsCancellationRequested)
+            {
+                try
+                {
+                    bool enabled;
+                    lock (_autoManagerLock)
+                    {
+                        enabled = _autoManagerEnabled;
+                    }
+
+                    if (!enabled)
+                    {
+                        return;
+                    }
+
+                    bool upvoteOk = ClsGameControl.CheckUpvote();
+                    if (upvoteOk)
+                    {
+                        AppendLog("[自动] 检测到点赞并已执行");
+                    }
+                }
+                catch (OperationCanceledException)
+                {
+                    return;
+                }
+                catch (Exception ex)
+                {
+                    AppendLog($"[错误] 自动点赞检测失败: {ex.Message}");
+                }
+
+                try
+                {
+                    await Task.Delay(2000, cancellationToken);
+                }
+                catch (OperationCanceledException)
+                {
+                    return;
+                }
             }
         }
         #endregion
@@ -1067,6 +1397,5 @@ namespace FH_WPF
             }
         }
         #endregion
-
     }
 }
