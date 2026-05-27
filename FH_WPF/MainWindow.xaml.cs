@@ -4,8 +4,10 @@ using System.IO;
 using System.Text.Json;
 using System.Windows;
 using System.Windows.Input;
+using System.Windows.Interop;
 using System.Windows.Media;
 using System.Windows.Threading;
+using System.Runtime.InteropServices;
 
 namespace FH_WPF
 {
@@ -87,6 +89,7 @@ namespace FH_WPF
         public MainWindow()
         {
             InitializeComponent();
+
             // 加载持久化的界面数据
             try { LoadSettings(); } catch { }
             _startTime = DateTime.Now;
@@ -1139,6 +1142,95 @@ namespace FH_WPF
         #endregion
 
         #region 窗口事件与界面操作
+        // Win32 constants for hit testing to enable resizing on a borderless window
+        private const int WM_NCHITTEST = 0x0084;
+        private const int HTCLIENT = 1;
+        private const int HTCAPTION = 2;
+        private const int HTLEFT = 10;
+        private const int HTRIGHT = 11;
+        private const int HTTOP = 12;
+        private const int HTTOPLEFT = 13;
+        private const int HTTOPRIGHT = 14;
+        private const int HTBOTTOM = 15;
+        private const int HTBOTTOMLEFT = 16;
+        private const int HTBOTTOMRIGHT = 17;
+
+        protected override void OnSourceInitialized(EventArgs e)
+        {
+            base.OnSourceInitialized(e);
+            try
+            {
+                var hwndSource = PresentationSource.FromVisual(this) as HwndSource;
+                hwndSource?.AddHook(WndProc);
+            }
+            catch { }
+        }
+
+        private IntPtr WndProc(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
+        {
+            if (msg == WM_NCHITTEST)
+            {
+                try
+                {
+                    // extract screen coordinates from lParam
+                    int lParamInt = lParam.ToInt32();
+                    int x = (short)(lParamInt & 0xFFFF);
+                    int y = (short)((lParamInt >> 16) & 0xFFFF);
+
+                    // convert to window-relative coordinates
+                    var ptScreen = new System.Windows.Point(x, y);
+                    var ptWindow = this.PointFromScreen(ptScreen);
+
+                    const int resizeBorder = 8; // thickness in pixels
+                    double width = this.ActualWidth;
+                    double height = this.ActualHeight;
+
+                    // top
+                    if (ptWindow.Y >= 0 && ptWindow.Y <= resizeBorder)
+                    {
+                        if (ptWindow.X <= resizeBorder)
+                        {
+                            handled = true; return new IntPtr(HTTOPLEFT);
+                        }
+                        if (ptWindow.X >= width - resizeBorder)
+                        {
+                            handled = true; return new IntPtr(HTTOPRIGHT);
+                        }
+                        handled = true; return new IntPtr(HTTOP);
+                    }
+
+                    // bottom
+                    if (ptWindow.Y >= height - resizeBorder && ptWindow.Y <= height)
+                    {
+                        if (ptWindow.X <= resizeBorder)
+                        {
+                            handled = true; return new IntPtr(HTBOTTOMLEFT);
+                        }
+                        if (ptWindow.X >= width - resizeBorder)
+                        {
+                            handled = true; return new IntPtr(HTBOTTOMRIGHT);
+                        }
+                        handled = true; return new IntPtr(HTBOTTOM);
+                    }
+
+                    // left
+                    if (ptWindow.X >= 0 && ptWindow.X <= resizeBorder)
+                    {
+                        handled = true; return new IntPtr(HTLEFT);
+                    }
+
+                    // right
+                    if (ptWindow.X >= width - resizeBorder && ptWindow.X <= width)
+                    {
+                        handled = true; return new IntPtr(HTRIGHT);
+                    }
+                }
+                catch { }
+            }
+
+            return IntPtr.Zero;
+        }
+
         private void Window_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
         {
             if (e.ButtonState == MouseButtonState.Pressed && e.ChangedButton == MouseButton.Left)

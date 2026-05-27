@@ -139,12 +139,14 @@
             </Grid.RowDefinitions>
 
             <Grid Grid.Row="1" Margin="0,0,0,10">
+                <!-- Use three columns so internal cards resize naturally instead of relying on margins -->
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="2*"/>
+                    <ColumnDefinition Width="3*"/>
                     <ColumnDefinition Width="*"/>
                 </Grid.ColumnDefinitions>
 
-                <Border Grid.Column="0" Style="{StaticResource CardBorderStyle}" Margin="0,0,478,10">
+                <Border Grid.Column="0" Style="{StaticResource CardBorderStyle}" Margin="0,0,10,10">
                     <Grid>
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="120"/>
@@ -196,7 +198,8 @@
                     </Grid>
                 </Border>
 
-                <Border Grid.Column="0" Style="{StaticResource CardBorderStyle}" Margin="421,0,154,10" Grid.ColumnSpan="2">
+                <!-- 全局日志 放在中间列，让其与窗口宽度一起伸缩 -->
+                <Border Grid.Column="1" Style="{StaticResource CardBorderStyle}" Margin="0,0,10,10">
                     <Grid>
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="90"/>
@@ -213,7 +216,8 @@
                         <TextBox x:Name="txtLog" Grid.Row="1" Background="#0A1322" Foreground="#DDE8FF" BorderBrush="#2A3A56" Text="[21:43:11] [信息] 脚本已启动" Grid.ColumnSpan="2" Margin="10,0,10,-128" Grid.RowSpan="3" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" Height="128"/>
                     </Grid>
                 </Border>
-                <Border Style="{StaticResource CardBorderStyle}" Margin="293,0,10,10" Grid.Column="1">
+                <!-- 当前状态 放在右侧列 -->
+                <Border Style="{StaticResource CardBorderStyle}" Margin="0,0,0,10" Grid.Column="2">
                     <StackPanel>
                         <TextBlock Text="📶 当前状态" Foreground="{StaticResource TextBrush}" FontWeight="SemiBold" Margin="0,0,0,10"/>
                         <TextBlock Text="脚本状态： ● 未运行" Foreground="{StaticResource SubTextBrush}" Margin="0,20,0,2" VerticalAlignment="Center"/>
@@ -281,7 +285,8 @@
                     </Grid>
                 </Border>
 
-                <Border Style="{StaticResource CardBorderStyle}" Grid.ColumnSpan="2" Margin="670,0,0,0">
+                <!-- 消耗所有车辆热练度 放在右侧列 (Grid.Column=1) 以随列宽变化 -->
+                <Border Style="{StaticResource CardBorderStyle}" Grid.Column="1" Margin="0,0,0,0">
                     <Grid>
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto"/>
@@ -356,9 +361,9 @@
                 <Separator/>
                 <StatusBarItem Content="作者：1282297544"/>
             </StatusBar>
-            <Button x:Name="btnClose" Content="X" Style="{StaticResource SecondaryButtonStyle}" Margin="1311,-40,0,52" Click="btnClose_Click" Height="30"/>
+            <Button x:Name="btnClose" Content="X" Style="{StaticResource SecondaryButtonStyle}" Margin="0,-40,0,52" Click="btnClose_Click" Height="30" HorizontalAlignment="Right" Width="30"/>
         </Grid>
-        <Image OpacityMask="White" Source="/Forza_Horizon_6_logo.png" Margin="19,11,1136,707" Grid.Column="1"/>
+        <Image x:Name="ImgTitelLog" OpacityMask="White" Source="pack://application:,,,/Resouce/Forza_Horizon_6_logo.png" Margin="19,11" Grid.Column="1" Width="210" Height="42" HorizontalAlignment="Left" VerticalAlignment="Top"/>
         <TextBlock Text="脚本工具  v1.0.0" Foreground="#9AA7C2" Margin="23,63,1134,689" Grid.Column="1"/>
     </Grid>
 </Window>

@@ -23,11 +23,12 @@ namespace FH_WPF
 
         static ClsLogicContorl_Ghub()
         {
-            var baseDir = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location) ?? Environment.CurrentDirectory;
+            var baseDir = Path.GetDirectoryName(AppContext.BaseDirectory) ?? Environment.CurrentDirectory;
+            
             var dllPath = Path.Combine(baseDir, DllName);
             if (!File.Exists(dllPath))
             {
-                // 不抛出异常，转换为可检查的初始化失败，方便 UI 诊断
+                // 不抛出异常，转换为可检查的初始化失败，方便 UI 诊断s
                 _lastError = $"Native library not found: {dllPath}";
                 IsInitialized = false;
                 return;

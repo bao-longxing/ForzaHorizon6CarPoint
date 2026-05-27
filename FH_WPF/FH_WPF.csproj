@@ -11,8 +11,8 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <None Remove="Forza_Horizon_6_logo.png" />
     <None Remove="Forza_Horizon_6_logo.svg.png" />
+    <None Remove="Resouce\Forza_Horizon_6_logo.png" />
   </ItemGroup>
 
   <ItemGroup>
@@ -32,7 +32,9 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Resource Include="Forza_Horizon_6_logo.png" />
+    <Resource Include="Resouce\Forza_Horizon_6_logo.png">
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </Resource>
   </ItemGroup>
 
 </Project>
