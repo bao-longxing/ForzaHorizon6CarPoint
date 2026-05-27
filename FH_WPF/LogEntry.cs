@@ -25,12 +25,17 @@ namespace FH_WPF
             LevelBackground = ResolveLevelBrush(level);
         }
 
-        private static Brush ResolveLevelBrush(string level) => level switch
+        private static Brush ResolveLevelBrush(string level)
         {
-            "成功" => new SolidColorBrush(Color.FromRgb(0x2E, 0x7D, 0x32)),
-            "警告" => new SolidColorBrush(Color.FromRgb(0xE6, 0x5C, 0x00)),
-            "错误" => new SolidColorBrush(Color.FromRgb(0xB7, 0x1C, 0x1C)),
-            _      => new SolidColorBrush(Color.FromRgb(0x15, 0x65, 0xC0)), // 信息
-        };
+            SolidColorBrush brush = level switch
+            {
+                "成功" => new SolidColorBrush(Color.FromRgb(0x2E, 0x7D, 0x32)),
+                "警告" => new SolidColorBrush(Color.FromRgb(0xE6, 0x5C, 0x00)),
+                "错误" => new SolidColorBrush(Color.FromRgb(0xB7, 0x1C, 0x1C)),
+                _      => new SolidColorBrush(Color.FromRgb(0x15, 0x65, 0xC0)), // 信息
+            };
+            brush.Freeze(); // 冻结后可跨线程安全访问
+            return brush;
+        }
     }
 }

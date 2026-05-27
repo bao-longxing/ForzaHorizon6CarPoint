@@ -8,7 +8,7 @@
         Title="Horizon 6 脚本工具"
         MouseLeftButtonDown="Window_MouseLeftButtonDown"
         Closing="Window_Closing"
-        Width="1365"
+        Width="1024"
         Height="768"
         FontFamily="Segoe UI"
         WindowStartupLocation="CenterScreen"
@@ -177,24 +177,24 @@
                         </Grid>
                     </Border>
 
-                    <Border Style="{StaticResource CardBorderStyle}" Margin="0,10,0,10">
+                    <Border Style="{StaticResource CardBorderStyle}" Margin="0,10,0,10" Padding="12,12,0,12">
                         <StackPanel>
                             <TextBlock Text="⌨ 快捷键提示" Foreground="{StaticResource TextBrush}" FontWeight="SemiBold" Margin="0,0,0,10"/>
                             <WrapPanel>
-                                <Label x:Name="lblBuyFromCollection" Content="🟢 从收集簿购买 (F6)" Style="{StaticResource ActionLabelStyle}" Background="#2E7D32" Foreground="White" Margin="0,0,8,8" Width="200"/>
-                                <Label x:Name="lblPoint" Content="✨ 消耗点数 (F7)" Style="{StaticResource ActionLabelStyle}" Background="#DE7F23" BorderBrush="#F39A45" Margin="0,0,8,8" Width="200"/>
-                                <Label x:Name="lblDelectCar" Content="🗑 从车库中移除 (F8)" Style="{StaticResource ActionLabelStyle}" Background="#7F1F2F" BorderBrush="#A9364D" Margin="0,0,8,8" Width="200"/>
-                                <Label x:Name="lblGotoRace" Content="🧬 蓝图脚本 (F9)" Style="{StaticResource ActionLabelStyle}" Margin="0,0,8,8" Width="200"/>
+                                <Label x:Name="lblAuto" Content="💻全自动执行(F5)" Style="{StaticResource ActionLabelStyle}" Background="#FF3184AF" Foreground="White" Margin="0,0,8,4" Width="215"/>
+                                <Label x:Name="lblBuyFromCollection" Content="🟢 从收集簿购买 (F6)" Style="{StaticResource ActionLabelStyle}" Background="#2E7D32" Foreground="White" Margin="0,0,8,4" Width="215"/>
+                                <Label x:Name="lblPoint" Content="✨ 消耗点数 (F7)" Style="{StaticResource ActionLabelStyle}" Background="#DE7F23" BorderBrush="#F39A45" Margin="0,0,8,4" Width="215"/>
+                                <Label x:Name="lblDelectCar" Content="🗑 从车库中移除 (F8)" Style="{StaticResource ActionLabelStyle}" Background="#7F1F2F" BorderBrush="#A9364D" Margin="0,0,8,4" Width="215"/>
+                                <Label x:Name="lblGotoRace" Content="🧬 蓝图脚本 (F9)" Style="{StaticResource ActionLabelStyle}" Margin="0,0,8,8" Width="215"/>
                             </WrapPanel>
                         </StackPanel>
                     </Border>
 
-                    <Border Style="{StaticResource CardBorderStyle}" Margin="0,5,0,0">
+                    <Border Style="{StaticResource CardBorderStyle}" Margin="0,15,0,0">
                         <StackPanel>
                             <TextBlock Text="📶 当前状态" Foreground="{StaticResource TextBrush}" FontWeight="SemiBold" Margin="0,0,0,10"/>
-                            <TextBlock Text="脚本状态： ● 未运行" Foreground="{StaticResource SubTextBrush}" Margin="0,2" VerticalAlignment="Center"/>
-                            <TextBlock x:Name="txtOBSState" Text="OBS连接： ● 已连接" Foreground="#6AD37A" Margin="0,2"/>
-                            <TextBlock x:Name="txtPointTotal" Text="车辆热练度总数： --" Foreground="{StaticResource SubTextBrush}" Margin="0,2"/>
+                            <TextBlock x:Name="txtOBSState" Text="OBS连接： ● 已连接" Foreground="#6AD37A" Margin="0,2" HorizontalAlignment="Center"/>
+                            <TextBlock x:Name="txtPointTotal" Text="车辆热练度总数： --" Foreground="{StaticResource SubTextBrush}" Margin="0,2" HorizontalAlignment="Center"/>
                         </StackPanel>
                     </Border>
                 </StackPanel>
@@ -218,7 +218,7 @@
                                                   VirtualizingPanel.IsVirtualizing="True"
                                                   VirtualizingPanel.ScrollUnit="Pixel"
                                                   ScrollViewer.HorizontalScrollBarVisibility="Disabled"
-                                                  ScrollViewer.VerticalScrollBarVisibility="Auto">
+                                                  ScrollViewer.VerticalScrollBarVisibility="Hidden">
                             <ListView.Resources>
                                 <!-- 去除列表项选中时的蓝色高亮，保持深色风格 -->
                                 <Style TargetType="ListViewItem">
@@ -285,7 +285,7 @@
                                             </DataTemplate>
                                         </GridViewColumn.CellTemplate>
                                     </GridViewColumn>
-                                    <GridViewColumn Header="内容" Width="800">
+                                    <GridViewColumn Header="内容" Width="428">
                                         <GridViewColumn.CellTemplate>
                                             <DataTemplate>
                                                 <TextBlock Text="{Binding Content}" Foreground="#DDE8FF"

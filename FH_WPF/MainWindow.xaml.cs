@@ -1,4 +1,5 @@
 ﻿using OpenCvSharp;
+using System.Collections.Specialized;
 using System.Diagnostics;
 using System.IO;
 using System.Text.Json;
@@ -44,6 +45,11 @@ namespace FH_WPF
         private AutoManagerState _autoManagerState = AutoManagerState.Idle;
         private readonly object _autoManagerLock = new();
         private CancellationTokenSource? _upvoteMonitorCts;
+
+        // 日志列表性能控制
+        private const int MaxLogEntries = 2000;
+        private const int LogTrimKeepCount = 1800;
+        private bool _isTrimmingLogEntries;
         #endregion
 
         #region OBS 界面更新
@@ -100,6 +106,7 @@ namespace FH_WPF
             //初始化日志（统一输出到日志列表）
             ClsLogger.Init();
             lvLog.ItemsSource = ClsLogger.Entries;
+            ClsLogger.Entries.CollectionChanged += LogEntries_CollectionChanged;
 
             //初始化OBS
             // 延后连接 OBS，使用持久化的配置（如果存在）
@@ -1404,6 +1411,8 @@ namespace FH_WPF
                 // 取消订阅 OBS 事件
                 try { ClsObs.OnConnected -= OnObsConnected; } catch { }
                 try { ClsObs.OnDisconnected -= OnObsDisconnected; } catch { }
+                // 取消日志集合监听
+                try { ClsLogger.Entries.CollectionChanged -= LogEntries_CollectionChanged; } catch { }
                 // 保存界面可编辑控件内容
                 try { SaveSettings(); } catch { }
             }
@@ -1415,38 +1424,54 @@ namespace FH_WPF
         #endregion
 
         #region 日志辅助
+        private void LogEntries_CollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
+        {
+            try
+            {
+                if (e.Action == NotifyCollectionChangedAction.Add)
+                {
+                    if (lvLog.Items.Count > 0)
+                        lvLog.ScrollIntoView(lvLog.Items[lvLog.Items.Count - 1]);
+
+                    TrimLogEntriesIfNeeded();
+                }
+            }
+            catch { }
+        }
+
+        private void TrimLogEntriesIfNeeded()
+        {
+            if (_isTrimmingLogEntries) return;
+            if (ClsLogger.Entries.Count <= MaxLogEntries) return;
+
+            try
+            {
+                _isTrimmingLogEntries = true;
+                while (ClsLogger.Entries.Count > LogTrimKeepCount)
+                {
+                    ClsLogger.Entries.RemoveAt(0);
+                }
+            }
+            catch { }
+            finally
+            {
+                _isTrimmingLogEntries = false;
+            }
+        }
+
         private void AppendLog(string message)
         {
             ClsLogger.Log(message);
-            // 自动滚动到最新条目
-            try
-            {
-                if (lvLog.Items.Count > 0)
-                    lvLog.ScrollIntoView(lvLog.Items[lvLog.Items.Count - 1]);
-            }
-            catch { }
         }
 
         private void AppendPointLog(string message)
         {
             ClsLogger.LogPoint(message);
-            try
-            {
-                if (lvLog.Items.Count > 0)
-                    lvLog.ScrollIntoView(lvLog.Items[lvLog.Items.Count - 1]);
-            }
-            catch { }
         }
 
         private void AppendScriptLog(string message)
         {
             ClsLogger.LogScript(message);
-            try
-            {
-                if (lvLog.Items.Count > 0)
-                    lvLog.ScrollIntoView(lvLog.Items[lvLog.Items.Count - 1]);
-            }
-            catch { }
         }
         #endregion
 

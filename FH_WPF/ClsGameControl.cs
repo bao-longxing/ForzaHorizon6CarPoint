@@ -385,6 +385,15 @@ namespace FH_WPF
                 _ => $"鼠标按钮{button}"
             };
         }
+
+        // 点击去抖/去重：记录最后一次点击的屏幕坐标与时间，短时间内对相同位置的重复点击将被忽略
+        private static readonly object _lastClickLock = new object();
+        private static DateTime _lastClickTime = DateTime.MinValue;
+        private static int _lastClickX = int.MinValue;
+        private static int _lastClickY = int.MinValue;
+        // 时间窗（毫秒）与像素阈值（像素距离内视为同一位置）
+        private const int ClickDebounceMs = 800;
+        private const int ClickDebounceDistance = 8;
         #endregion
 
         #region 功能: 高级操作
@@ -2379,12 +2388,38 @@ namespace FH_WPF
                 }
 
                 MapImagePointToWindow(srcMat, wndRect, imageX, imageY, out _, out _, out int clickX, out int clickY);
+                // 点击去抖：若短时间内已在接近坐标执行过点击，则跳过实际点击以避免重复
+                lock (_lastClickLock)
+                {
+                    var now = DateTime.UtcNow;
+                    if (_lastClickTime != DateTime.MinValue)
+                    {
+                        var ms = (now - _lastClickTime).TotalMilliseconds;
+                        int dx = Math.Abs(clickX - _lastClickX);
+                        int dy = Math.Abs(clickY - _lastClickY);
+                        if (ms <= ClickDebounceMs && dx <= ClickDebounceDistance && dy <= ClickDebounceDistance)
+                        {
+                            ClsLogger.LogPoint($"{logTag}: 跳过去抖重复点击 (x={clickX}, y={clickY}, dt={ms:F0}ms)");
+                            return true; // 视为已点击，避免上层重试
+                        }
+                    }
+                }
+
                 ClsLogicContorl_Ghub.Move(-4096, -4096);
                 ClsLogicContorl_Ghub.Move(clickX, clickY, true);
                 Thread.Sleep(100);
                 // 使用统一的点击与等待封装，便于日志与行为一致
                 ClickMouseAndWait(1, 100, logTag);
                 Debug.WriteLine($"x = {clickX} y = {clickY}");
+
+                // 记录本次点击位置与时间
+                lock (_lastClickLock)
+                {
+                    _lastClickTime = DateTime.UtcNow;
+                    _lastClickX = clickX;
+                    _lastClickY = clickY;
+                }
+
                 return true;
             }
             catch (Exception ex)

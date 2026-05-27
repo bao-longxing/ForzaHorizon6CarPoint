@@ -68,13 +68,13 @@ namespace FH_WPF
         /// </summary>
         public static bool IsStreaming { get; private set; }
         /// <summary>
-        /// 默认用于从 OBS 获取截图时的目标宽度（像素）。
-        /// 可在运行时修改以适配不同分辨率。
+        /// 从 OBS 视频设置获取的截图目标宽度（像素）。
+        /// 连接 OBS 后自动同步，也可手动覆盖。
         /// </summary>
         public static int ScreenshotWidth { get; set; } = 1360;
         /// <summary>
-        /// 默认用于从 OBS 获取截图时的目标高度（像素）。
-        /// 可在运行时修改以适配不同分辨率。
+        /// 从 OBS 视频设置获取的截图目标高度（像素）。
+        /// 连接 OBS 后自动同步，也可手动覆盖。
         /// </summary>
         public static int ScreenshotHeight { get; set; } = 768;
         /// <summary>
@@ -486,6 +486,17 @@ namespace FH_WPF
         {
             Log("收到 OBS Connected 事件");
             StopReconnectLoop();
+            try
+            {
+                var videoSettings = _obs.GetVideoSettings();
+                //ScreenshotWidth = videoSettings.BaseWidth;
+                //ScreenshotHeight = videoSettings.BaseHeight;
+                //Log($"已从 OBS 同步分辨率: {ScreenshotWidth}x{ScreenshotHeight}");
+            }
+            catch (Exception ex)
+            {
+                Log($"获取 OBS 视频设置失败，保留默认分辨率: {ex.Message}");
+            }
             OnConnected?.Invoke();
         }
 
