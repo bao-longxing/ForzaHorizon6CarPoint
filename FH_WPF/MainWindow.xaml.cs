@@ -97,8 +97,9 @@ namespace FH_WPF
             _timer.Tick += Timer_Tick;
             _timer.Start();
 
-            //初始化日志
-            ClsLogger.Init(txtLog, txtScriptLog, txtPointLog);
+            //初始化日志（统一输出到日志列表）
+            ClsLogger.Init();
+            lvLog.ItemsSource = ClsLogger.Entries;
 
             //初始化OBS
             // 延后连接 OBS，使用持久化的配置（如果存在）
@@ -144,7 +145,7 @@ namespace FH_WPF
                 _keyboardHook = new ClsKeyboardHook();
                 _keyboardHook.Start();
                 ClsGameControl.InitializeCancelToken(_keyboardHook);
-                AppendLog("[信息] KeyboardHook 已初始化，F12取消功能可用");
+                AppendLog("[信息] KeyboardHook 已初始化，F11取消功能可用");
             }
             catch (Exception ex)
             {
@@ -278,8 +279,11 @@ namespace FH_WPF
             _currentPoint = Math.Max(0, Math.Min(MaxPoint, e));
 
             txtPointTotal.Text = $"车辆热练度总数： {_currentPoint}";
-            PrgPointTo999.Value = ((double)_currentPoint / MaxPoint) * 100;
-            PrgPointToZero.Value = (1 - ((double)_currentPoint / MaxPoint)) * 100;
+            var progressToMax = ((double)_currentPoint / MaxPoint) * 100;
+            var progressToZero = (1 - ((double)_currentPoint / MaxPoint)) * 100;
+            var unifiedProgress = _carPointRunning ? progressToZero : progressToMax;
+            PrgPointTo999.Value = unifiedProgress;
+            PrgPointToZero.Value = unifiedProgress;
 
             UpdateEstimatedTime();
         }
@@ -844,7 +848,8 @@ namespace FH_WPF
             try
             {
                 AppendScriptLog("[事件] 蓝图执行开始");
-                // 启动 Race 计时
+                // 切换为蓝图模式
+                _carPointRunning = false;
                 _raceStartTime = DateTime.Now;
                 _raceRunning = true;
                 // 立即更新一次 UI
@@ -896,6 +901,8 @@ namespace FH_WPF
             try
             {
                 AppendPointLog($"[{DateTime.Now:HH:mm:ss}] 消耗点数开始事件触发，启动点数计时...");
+                // 切换为点数消耗模式
+                _raceRunning = false;
                 _carPointStartTime = DateTime.Now;
                 _carPointRunning = true;
                 UpdateCarPointTime();
@@ -984,21 +991,24 @@ namespace FH_WPF
             catch { }
         }
 
-        // 更新消耗点数计时显示到 txtCarPointTime
+        // 更新消耗点数计时显示到统一时间控件
         private void UpdateCarPointTime()
         {
             try
             {
-                if (txtCarPointTime == null) return;
+                if (txtRaceTime == null || txtCarPointTime == null) return;
                 if (!_carPointStartTime.HasValue)
                 {
+                    txtRaceTime.Text = "已用时：00:00:00";
                     txtCarPointTime.Text = "已用时：00:00:00";
                     return;
                 }
 
                 var elapsed = DateTime.Now - _carPointStartTime.Value;
                 var hours = (int)elapsed.TotalHours;
-                txtCarPointTime.Text = $"已用时：{hours:00}:{elapsed.Minutes:00}:{elapsed.Seconds:00}";
+                var value = $"已用时：{hours:00}:{elapsed.Minutes:00}:{elapsed.Seconds:00}";
+                txtRaceTime.Text = value;
+                txtCarPointTime.Text = value;
             }
             catch { }
         }
@@ -1050,8 +1060,9 @@ namespace FH_WPF
                             var raceRemainingTicksByDelta = raceTicksByDelta - elapsedSinceLastPoint.Ticks;
                             if (raceRemainingTicksByDelta < 0) raceRemainingTicksByDelta = 0;
                             var raceEstimatedFromDelta = TimeSpan.FromTicks(raceRemainingTicksByDelta);
-                            txtRaceEstimatedTime.Text = $"预计用时：{FormatTimeSpan(raceEstimatedFromDelta)}";
-                            txtCarPointEstimatedTime.Text = "预计用时：--:--:--";
+                            var value = $"预计用时：{FormatTimeSpan(raceEstimatedFromDelta)}";
+                            txtRaceEstimatedTime.Text = value;
+                            txtCarPointEstimatedTime.Text = value;
                             return;
                         }
                         // 如果 delta <= 0，则回退到使用配置的单圈点数估算
@@ -1063,8 +1074,9 @@ namespace FH_WPF
                     var raceRemainingTicksBySinglePoint = raceTicksBySinglePoint - elapsedSinceLastPoint.Ticks;
                     if (raceRemainingTicksBySinglePoint < 0) raceRemainingTicksBySinglePoint = 0;
                     var raceEstimatedFromSinglePoint = TimeSpan.FromTicks(raceRemainingTicksBySinglePoint);
-                    txtRaceEstimatedTime.Text = $"预计用时：{FormatTimeSpan(raceEstimatedFromSinglePoint)}";
-                    txtCarPointEstimatedTime.Text = "预计用时：--:--:--";
+                    var fallbackValue = $"预计用时：{FormatTimeSpan(raceEstimatedFromSinglePoint)}";
+                    txtRaceEstimatedTime.Text = fallbackValue;
+                    txtCarPointEstimatedTime.Text = fallbackValue;
                     return;
                 }
 
@@ -1080,7 +1092,7 @@ namespace FH_WPF
                             if (leftToThreshold <= 0)
                             {
                                 txtCarPointEstimatedTime.Text = "预计用时：00:00:00";
-                                txtRaceEstimatedTime.Text = "预计用时：--:--:--";
+                                txtRaceEstimatedTime.Text = "预计用时：00:00:00";
                                 return;
                             }
 
@@ -1090,8 +1102,9 @@ namespace FH_WPF
                             var carPointRemainingTicks = carPointTotalRemainingTicks - elapsedSinceLastPoint.Ticks;
                             if (carPointRemainingTicks < 0) carPointRemainingTicks = 0;
                             var carPointEstimatedTimeSpan = TimeSpan.FromTicks(carPointRemainingTicks);
-                            txtCarPointEstimatedTime.Text = $"预计用时：{FormatTimeSpan(carPointEstimatedTimeSpan)}";
-                            txtRaceEstimatedTime.Text = "预计用时：--:--:--";
+                            var value = $"预计用时：{FormatTimeSpan(carPointEstimatedTimeSpan)}";
+                            txtCarPointEstimatedTime.Text = value;
+                            txtRaceEstimatedTime.Text = value;
                             return;
                         }
                         else
@@ -1404,64 +1417,34 @@ namespace FH_WPF
         #region 日志辅助
         private void AppendLog(string message)
         {
+            ClsLogger.Log(message);
+            // 自动滚动到最新条目
             try
             {
-                if (txtLog != null)
-                {
-                    var prefix = DateTime.Now.ToString("HH:mm:ss");
-                    if (string.IsNullOrEmpty(txtLog.Text))
-                        txtLog.Text = $"[{prefix}] {message}";
-                    else
-                        txtLog.Text += Environment.NewLine + $"[{prefix}] {message}";
-                    try
-                    {
-                        txtLog.CaretIndex = txtLog.Text.Length;
-                        txtLog.ScrollToEnd();
-                    }
-                    catch { }
-                }
+                if (lvLog.Items.Count > 0)
+                    lvLog.ScrollIntoView(lvLog.Items[lvLog.Items.Count - 1]);
             }
             catch { }
         }
 
         private void AppendPointLog(string message)
         {
+            ClsLogger.LogPoint(message);
             try
             {
-                if (txtPointLog != null)
-                {
-                    if (string.IsNullOrEmpty(txtPointLog.Text))
-                        txtPointLog.Text = message;
-                    else
-                        txtPointLog.Text += Environment.NewLine + message;
-                    try
-                    {
-                        txtPointLog.CaretIndex = txtPointLog.Text.Length;
-                        txtPointLog.ScrollToEnd();
-                    }
-                    catch { }
-                }
+                if (lvLog.Items.Count > 0)
+                    lvLog.ScrollIntoView(lvLog.Items[lvLog.Items.Count - 1]);
             }
             catch { }
         }
 
         private void AppendScriptLog(string message)
         {
+            ClsLogger.LogScript(message);
             try
             {
-                if (txtScriptLog != null)
-                {
-                    if (string.IsNullOrEmpty(txtScriptLog.Text))
-                        txtScriptLog.Text = message;
-                    else
-                        txtScriptLog.Text += Environment.NewLine + message;
-                    try
-                    {
-                        txtScriptLog.CaretIndex = txtScriptLog.Text.Length;
-                        txtScriptLog.ScrollToEnd();
-                    }
-                    catch { }
-                }
+                if (lvLog.Items.Count > 0)
+                    lvLog.ScrollIntoView(lvLog.Items[lvLog.Items.Count - 1]);
             }
             catch { }
         }

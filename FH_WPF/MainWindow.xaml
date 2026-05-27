@@ -138,143 +138,166 @@
                 <RowDefinition Height="Auto"/>
             </Grid.RowDefinitions>
 
-            <Grid Grid.Row="1" Margin="0,0,0,10">
-                <!-- Use three columns so internal cards resize naturally instead of relying on margins -->
+            <Grid Grid.Row="1" Grid.RowSpan="2" Margin="0,0,0,10">
                 <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="2*"/>
+                    <ColumnDefinition Width="250"/>
                     <ColumnDefinition Width="3*"/>
-                    <ColumnDefinition Width="*"/>
                 </Grid.ColumnDefinitions>
 
-                <Border Grid.Column="0" Style="{StaticResource CardBorderStyle}" Margin="0,0,10,10">
-                    <Grid>
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="120"/>
-                            <ColumnDefinition Width="*"/>
-                        </Grid.ColumnDefinitions>
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="Auto"/>
-                            <RowDefinition Height="Auto"/>
-                            <RowDefinition Height="Auto"/>
-                            <RowDefinition Height="Auto"/>
-                            <RowDefinition Height="Auto"/>
-                        </Grid.RowDefinitions>
+                <StackPanel Grid.Column="0" Margin="0,0,10,0">
+                    <Border Style="{StaticResource CardBorderStyle}" Margin="0,0,0,0">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="120"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
 
-                        <TextBlock Text="🚗 车辆信息" Grid.ColumnSpan="2" Foreground="{StaticResource TextBrush}" FontWeight="SemiBold" Margin="0,0,0,10"/>
-                        <TextBlock Text="车辆性能分(用于删除)" Grid.Row="1" Foreground="{StaticResource SubTextBrush}" VerticalAlignment="Center"/>
-                        <TextBox x:Name="txtCarScore" Grid.Row="1" Grid.Column="1" Height="34" Background="#0A1322" Foreground="#DDE8FF" BorderBrush="#2A3A56" Text="600" VerticalContentAlignment="Center"/>
-                        <TextBlock Text="车辆厂商" Grid.Row="2" Foreground="{StaticResource SubTextBrush}" VerticalAlignment="Center"/>
-                        <TextBox x:Name="txtCarFactory" Grid.Row="2" Grid.Column="1" Height="34" Background="#0A1322" Foreground="#DDE8FF" BorderBrush="#2A3A56" Text="斯巴鲁" UseLayoutRounding="False" VerticalContentAlignment="Center"/>
-                        <TextBlock Text="车辆名称" Grid.Row="3" Foreground="{StaticResource SubTextBrush}" VerticalAlignment="Center" Margin="0,10,0,0"/>
-                        <TextBox x:Name="txtCarType" Grid.Row="3" Grid.Column="1" Height="34" Background="#0A1322" Foreground="#DDE8FF" BorderBrush="#2A3A56" Text="22B" VerticalContentAlignment="Center"/>
-                        <!-- 修改后的按钮区域：横跨两列，这样左边就有足够的空间了 -->
-                        <StackPanel Grid.Row="4" 
-                        Grid.Column="0" 
-                        Grid.ColumnSpan="2" 
-                        Orientation="Horizontal" 
-                        HorizontalAlignment="Right" 
-                        Margin="0,12,0,0">
+                            <TextBlock Text="🚗 配置信息" Grid.ColumnSpan="2" Foreground="{StaticResource TextBrush}" FontWeight="SemiBold" Margin="0,0,0,2"/>
+                            <TextBlock Text="车辆性能分(用于删除)" Grid.Row="1" Foreground="{StaticResource SubTextBrush}" VerticalAlignment="Center"/>
+                            <TextBox x:Name="txtCarScore" Grid.Row="1" Grid.Column="1" Height="34" Background="#0A1322" Foreground="#DDE8FF" BorderBrush="#2A3A56" Text="600" VerticalContentAlignment="Center"/>
+                            <TextBlock Text="车辆厂商" Grid.Row="2" Foreground="{StaticResource SubTextBrush}" VerticalAlignment="Center"/>
+                            <TextBox x:Name="txtCarFactory" Grid.Row="2" Grid.Column="1" Height="34" Background="#0A1322" Foreground="#DDE8FF" BorderBrush="#2A3A56" Text="斯巴鲁" UseLayoutRounding="False" VerticalContentAlignment="Center"/>
+                            <TextBlock Text="车辆名称" Grid.Row="3" Foreground="{StaticResource SubTextBrush}" VerticalAlignment="Center" Margin="0,10,0,0"/>
+                            <TextBox x:Name="txtCarType" Grid.Row="3" Grid.Column="1" Height="34" Background="#0A1322" Foreground="#DDE8FF" BorderBrush="#2A3A56" Text="22B" VerticalContentAlignment="Center"/>
+                            <TextBlock Text="购买数量" Grid.Row="4" Foreground="{StaticResource SubTextBrush}" VerticalAlignment="Center"/>
+                            <TextBox x:Name="txtBuyCarNum" Grid.Row="4" Grid.Column="1" Height="34" Background="#0A1322" Foreground="#DDE8FF" BorderBrush="#2A3A56" Text="33" VerticalContentAlignment="Center"/>
+                            <TextBlock Text="蓝图代码" Grid.Row="5" Foreground="{StaticResource SubTextBrush}" VerticalAlignment="Center"/>
+                            <TextBox x:Name="txtScriptCode" Grid.Row="5" Grid.Column="1" Height="34" Background="#0A1322" Foreground="#DDE8FF" BorderBrush="#2A3A56" Text="503944655" VerticalContentAlignment="Center"/>
+                            <TextBlock Text="单局点数" Grid.Row="6" Foreground="{StaticResource SubTextBrush}" VerticalAlignment="Center"/>
+                            <TextBox x:Name="txtSinglePoint" Grid.Row="6" Grid.Column="1" Height="34" Background="#0A1322" Foreground="#DDE8FF" BorderBrush="#2A3A56" Text="9" VerticalContentAlignment="Center"/>
+                        </Grid>
+                    </Border>
 
-                            <TextBlock Text="购买数量" Foreground="{StaticResource SubTextBrush}" VerticalAlignment="Center" Margin="0,0,6,0"/>
-                            <TextBox x:Name="txtBuyCarNum" Width="44" Height="24" Background="#FF0A1322" BorderBrush="#FF2A3A56" Foreground="#FFDDE8FF" Text="33" VerticalContentAlignment="Center"/>
-
-                            <!-- 1. 改为 Label，显示快捷键提示 F6，颜色保持不变 -->
-                            <Label x:Name="lblBuyFromCollection" 
-                                   Content="🟢 从收集簿购买 (F6)" 
-                                   Style="{StaticResource ActionLabelStyle}"
-                                   Background="#2E7D32" 
-                                   Foreground="White" 
-                                   Width="125" 
-                                   Margin="0,0,10,0"/>
-
-                            <!-- 2. 改为 Label，显示快捷键提示 F8，颜色保持不变 -->
-                            <Label x:Name="lblDelectCar" 
-                                   Content="🗑 从车库中移除 (F8)" 
-                                   Style="{StaticResource ActionLabelStyle}"
-                                   Background="#7F1F2F"
-                                   BorderBrush="#A9364D"
-                                   Width="120" />
+                    <Border Style="{StaticResource CardBorderStyle}" Margin="0,10,0,10">
+                        <StackPanel>
+                            <TextBlock Text="⌨ 快捷键提示" Foreground="{StaticResource TextBrush}" FontWeight="SemiBold" Margin="0,0,0,10"/>
+                            <WrapPanel>
+                                <Label x:Name="lblBuyFromCollection" Content="🟢 从收集簿购买 (F6)" Style="{StaticResource ActionLabelStyle}" Background="#2E7D32" Foreground="White" Margin="0,0,8,8" Width="200"/>
+                                <Label x:Name="lblPoint" Content="✨ 消耗点数 (F7)" Style="{StaticResource ActionLabelStyle}" Background="#DE7F23" BorderBrush="#F39A45" Margin="0,0,8,8" Width="200"/>
+                                <Label x:Name="lblDelectCar" Content="🗑 从车库中移除 (F8)" Style="{StaticResource ActionLabelStyle}" Background="#7F1F2F" BorderBrush="#A9364D" Margin="0,0,8,8" Width="200"/>
+                                <Label x:Name="lblGotoRace" Content="🧬 蓝图脚本 (F9)" Style="{StaticResource ActionLabelStyle}" Margin="0,0,8,8" Width="200"/>
+                            </WrapPanel>
                         </StackPanel>
-                    </Grid>
-                </Border>
+                    </Border>
 
-                <!-- 全局日志 放在中间列，让其与窗口宽度一起伸缩 -->
-                <Border Grid.Column="1" Style="{StaticResource CardBorderStyle}" Margin="0,0,10,10">
-                    <Grid>
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="90"/>
-                            <ColumnDefinition Width="*"/>
-                        </Grid.ColumnDefinitions>
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="Auto"/>
-                            <RowDefinition Height="Auto"/>
-                            <RowDefinition Height="Auto"/>
-                            <RowDefinition Height="Auto"/>
-                        </Grid.RowDefinitions>
+                    <Border Style="{StaticResource CardBorderStyle}" Margin="0,5,0,0">
+                        <StackPanel>
+                            <TextBlock Text="📶 当前状态" Foreground="{StaticResource TextBrush}" FontWeight="SemiBold" Margin="0,0,0,10"/>
+                            <TextBlock Text="脚本状态： ● 未运行" Foreground="{StaticResource SubTextBrush}" Margin="0,2" VerticalAlignment="Center"/>
+                            <TextBlock x:Name="txtOBSState" Text="OBS连接： ● 已连接" Foreground="#6AD37A" Margin="0,2"/>
+                            <TextBlock x:Name="txtPointTotal" Text="车辆热练度总数： --" Foreground="{StaticResource SubTextBrush}" Margin="0,2"/>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
 
-                        <TextBlock Text="📄 全局日志" Grid.ColumnSpan="2" Foreground="{StaticResource TextBrush}" FontWeight="SemiBold" Margin="0,0,0,10"/>
-                        <TextBox x:Name="txtLog" Grid.Row="1" Background="#0A1322" Foreground="#DDE8FF" BorderBrush="#2A3A56" Text="[21:43:11] [信息] 脚本已启动" Grid.ColumnSpan="2" Margin="10,0,10,-128" Grid.RowSpan="3" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" Height="128"/>
-                    </Grid>
-                </Border>
-                <!-- 当前状态 放在右侧列 -->
-                <Border Style="{StaticResource CardBorderStyle}" Margin="0,0,0,10" Grid.Column="2">
-                    <StackPanel>
-                        <TextBlock Text="📶 当前状态" Foreground="{StaticResource TextBrush}" FontWeight="SemiBold" Margin="0,0,0,10"/>
-                        <TextBlock Text="脚本状态： ● 未运行" Foreground="{StaticResource SubTextBrush}" Margin="0,20,0,2" VerticalAlignment="Center"/>
-                        <TextBlock x:Name="txtOBSState" Text="OBS连接： ● 已连接" Foreground="#6AD37A" Margin="0,2"/>
-                        <TextBlock x:Name="txtPointTotal" Text="车辆热练度总数： --" Foreground="{StaticResource SubTextBrush}" Margin="0,2"/>
-                    </StackPanel>
-                </Border>
-            </Grid>
-
-            <Grid Grid.Row="2" Margin="0,0,0,10">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="*"/>
-                </Grid.ColumnDefinitions>
-
-                <Border Grid.Column="0" Style="{StaticResource CardBorderStyle}" Margin="0,0,10,0">
+                <Border Grid.Column="1" Style="{StaticResource CardBorderStyle}" Margin="0,0,0,0">
                     <Grid>
                         <Grid.RowDefinitions>
-                            <RowDefinition Height="Auto"/>
                             <RowDefinition Height="Auto"/>
                             <RowDefinition Height="*"/>
                             <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
                         </Grid.RowDefinitions>
 
-                        <TextBlock Text="🧬 蓝图脚本" Foreground="{StaticResource TextBrush}" FontWeight="SemiBold" Margin="0,0,0,10"/>
-                        <DockPanel Grid.Row="1" Margin="0,0,0,10">
-                                <StackPanel Orientation="Horizontal" DockPanel.Dock="Left" Cursor="Hand">
-                                <Label x:Name="lblGotoRace" Content="按下F9开始" Style="{StaticResource ActionLabelStyle}" Width="80" Height="25"/>
-                                <Label Content="蓝图代码：" Cursor="" Foreground="#FFCAD6F6" VerticalAlignment="Center"/>
-                                <TextBox x:Name="txtScriptCode" TextWrapping="Wrap" Text="503944655" Width="120" Background="#FF1B273B" Foreground="#FFCAD6F6" BorderBrush="#FF32445F" VerticalAlignment="Center"/>
-                                <!-- 新增：单局点数 -->
-                                <Label Content="单局点数：" Foreground="#FFCAD6F6" VerticalAlignment="Center" Margin="8,0,0,0"/>
-                                <TextBox x:Name="txtSinglePoint" Width="80" Text="9" Background="#FF1B273B" Foreground="#FFCAD6F6" BorderBrush="#FF32445F" VerticalAlignment="Center" Margin="4,0,0,0"/>
-                            </StackPanel>
-                        </DockPanel>
+                        <TextBlock Text="📄 日志" Foreground="{StaticResource TextBrush}" FontWeight="SemiBold" Margin="0,0,0,10"/>
+                        <ListView x:Name="lvLog" Grid.Row="1"
+                                                  Background="#08101D"
+                                                  BorderBrush="#22344F"
+                                                  BorderThickness="1"
+                                                  Foreground="#DDE8FF"
+                                                  FontSize="13"
+                                                  VirtualizingPanel.IsVirtualizing="True"
+                                                  VirtualizingPanel.ScrollUnit="Pixel"
+                                                  ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                                                  ScrollViewer.VerticalScrollBarVisibility="Auto">
+                            <ListView.Resources>
+                                <!-- 去除列表项选中时的蓝色高亮，保持深色风格 -->
+                                <Style TargetType="ListViewItem">
+                                    <Setter Property="Padding" Value="0,2"/>
+                                    <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                                    <Setter Property="Foreground" Value="#DDE8FF"/>
+                                    <Setter Property="Background" Value="Transparent"/>
+                                    <Setter Property="BorderThickness" Value="0"/>
+                                    <Setter Property="Template">
+                                        <Setter.Value>
+                                            <ControlTemplate TargetType="ListViewItem">
+                                                <Border x:Name="bd" Background="{TemplateBinding Background}" Padding="0,2">
+                                                    <GridViewRowPresenter/>
+                                                </Border>
+                                                <ControlTemplate.Triggers>
+                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                        <Setter TargetName="bd" Property="Background" Value="#0F1E35"/>
+                                                    </Trigger>
+                                                    <Trigger Property="IsSelected" Value="True">
+                                                        <Setter TargetName="bd" Property="Background" Value="#12233F"/>
+                                                    </Trigger>
+                                                </ControlTemplate.Triggers>
+                                            </ControlTemplate>
+                                        </Setter.Value>
+                                    </Setter>
+                                </Style>
+                                <!-- 列头样式 -->
+                                <Style TargetType="GridViewColumnHeader">
+                                    <Setter Property="Background" Value="#0B1625"/>
+                                    <Setter Property="Foreground" Value="#8D9AB4"/>
+                                    <Setter Property="BorderBrush" Value="#22344F"/>
+                                    <Setter Property="BorderThickness" Value="0,0,0,1"/>
+                                    <Setter Property="Padding" Value="8,6"/>
+                                    <Setter Property="FontSize" Value="12"/>
+                                    <Setter Property="HorizontalContentAlignment" Value="Center"/>
+                                </Style>
+                            </ListView.Resources>
+                            <ListView.View>
+                                <GridView>
+                                    <GridViewColumn Header="时间" Width="145">
+                                        <GridViewColumn.CellTemplate>
+                                            <DataTemplate>
+                                                <TextBlock Text="{Binding Time}" Foreground="#DDE8FF"
+                                                           HorizontalAlignment="Center" TextAlignment="Center"/>
+                                            </DataTemplate>
+                                        </GridViewColumn.CellTemplate>
+                                    </GridViewColumn>
+                                    <GridViewColumn Header="级别" Width="64">
+                                        <GridViewColumn.CellTemplate>
+                                            <DataTemplate>
+                                                <Border Background="{Binding LevelBackground}"
+                                                        CornerRadius="3" Padding="6,1" HorizontalAlignment="Center">
+                                                    <TextBlock Text="{Binding Level}" Foreground="White"
+                                                               FontSize="11" FontWeight="SemiBold" TextAlignment="Center"/>
+                                                </Border>
+                                            </DataTemplate>
+                                        </GridViewColumn.CellTemplate>
+                                    </GridViewColumn>
+                                    <GridViewColumn Header="模块" Width="80">
+                                        <GridViewColumn.CellTemplate>
+                                            <DataTemplate>
+                                                <TextBlock Text="{Binding Module}" Foreground="#DDE8FF"
+                                                           HorizontalAlignment="Center" TextAlignment="Center"/>
+                                            </DataTemplate>
+                                        </GridViewColumn.CellTemplate>
+                                    </GridViewColumn>
+                                    <GridViewColumn Header="内容" Width="800">
+                                        <GridViewColumn.CellTemplate>
+                                            <DataTemplate>
+                                                <TextBlock Text="{Binding Content}" Foreground="#DDE8FF"
+                                                           HorizontalAlignment="Center" TextAlignment="Center"/>
+                                            </DataTemplate>
+                                        </GridViewColumn.CellTemplate>
+                                    </GridViewColumn>
+                                </GridView>
+                            </ListView.View>
+                        </ListView>
 
-                        <Border Grid.Row="2" Background="#08101D" BorderBrush="#22344F" BorderThickness="1" CornerRadius="6" Padding="10">
-                            <Grid>
-                                <Grid.RowDefinitions>
-                                    <RowDefinition Height="Auto"/>
-                                    <RowDefinition Height="*"/>
-                                </Grid.RowDefinitions>
-                                <DockPanel>
-                                    <TextBlock Text="步骤日志" Foreground="#B8C7E6" Margin="0,0,0,8"/>
-                                    <Button Content="🗑 清空日志" Style="{StaticResource GhostButtonStyle}" DockPanel.Dock="Right" Margin="0,0,0,8"/>
-                                </DockPanel>
-                                <TextBox x:Name="txtScriptLog" Grid.Row="1"
-                                         AcceptsReturn="True"
-                                         TextWrapping="Wrap"
-                                         VerticalScrollBarVisibility="Auto"
-                                         Background="Transparent"
-                                         BorderThickness="0"
-                                         Foreground="#91A7D1"/>
-                            </Grid>
-                        </Border>
-
-                        <StackPanel Grid.Row="3" Margin="0,10,0,0">
+                        <StackPanel Grid.Row="2" Margin="0,10,0,0">
                             <TextBlock Text="整体进度" Foreground="{StaticResource SubTextBrush}"/>
                             <ProgressBar x:Name="PrgPointTo999" Value="100" Height="10" Margin="0,4,0,0" Background="#162238" Foreground="#9B4DFF"/>
                             <DockPanel Margin="0,6,0,0">
@@ -282,60 +305,14 @@
                                 <TextBlock x:Name="txtRaceEstimatedTime" Text="预计用时：00:00:00" Foreground="{StaticResource SubTextBrush}" HorizontalAlignment="Right"/>
                             </DockPanel>
                         </StackPanel>
-                    </Grid>
-                </Border>
 
-                <!-- 消耗所有车辆热练度 放在右侧列 (Grid.Column=1) 以随列宽变化 -->
-                <Border Style="{StaticResource CardBorderStyle}" Grid.Column="1" Margin="0,0,0,0">
-                    <Grid>
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="Auto"/>
-                            <RowDefinition Height="Auto"/>
-                            <RowDefinition Height="*"/>
-                            <RowDefinition Height="Auto"/>
-                        </Grid.RowDefinitions>
-
-                        <TextBlock Text="✨ 消耗所有车辆热练度" Foreground="{StaticResource TextBrush}" FontWeight="SemiBold" Margin="0,0,0,10"/>
-                        <DockPanel Grid.Row="1" Margin="0,0,0,10">
-                            <StackPanel Orientation="Horizontal" DockPanel.Dock="Left">
-                                <Label x:Name="lblPoint" Content="按下F7开始" Style="{StaticResource ActionLabelStyle}" Width="80" Height="25" Background="#DE7F23" BorderBrush="#F39A45"/>
-                            </StackPanel>
-                            <StackPanel Orientation="Horizontal" DockPanel.Dock="Right" HorizontalAlignment="Right">
-                                <TextBlock Text="预估时间：--:--" Foreground="{StaticResource SubTextBrush}" VerticalAlignment="Center"/>
-                            </StackPanel>
-                        </DockPanel>
-
-                        <Border Grid.Row="2" Background="#08101D" BorderBrush="#22344F" BorderThickness="1" CornerRadius="6" Padding="10">
-                            <Grid>
-                                <Grid.RowDefinitions>
-                                    <RowDefinition Height="Auto"/>
-                                    <RowDefinition Height="*"/>
-                                </Grid.RowDefinitions>
-                                <DockPanel>
-                                    <TextBlock Text="步骤日志" Foreground="#B8C7E6" Margin="0,0,0,8"/>
-                                    <Button Content="🗑 清空日志" Style="{StaticResource GhostButtonStyle}" DockPanel.Dock="Right" Margin="0,0,0,8"/>
-                                </DockPanel>
-
-                                <!-- 2. 在这里添加 TextBox，并绑定到第 1 行 -->
-                                <TextBox x:Name="txtPointLog" Grid.Row="1" 
-                 AcceptsReturn="True" 
-                 TextWrapping="Wrap" 
-                 VerticalScrollBarVisibility="Auto"
-                 Background="Transparent" 
-                 BorderThickness="0"
-                 Foreground="#FFFFFF" Height="164"/>
-
-                            </Grid>
-                        </Border>
-
-                        <StackPanel Grid.Row="3" Margin="0,10,0,0">
-                            <TextBlock Text="消耗进度" Foreground="{StaticResource SubTextBrush}"/>
-                            <ProgressBar x:Name="PrgPointToZero" Value="100" Height="10" Margin="0,4,0,0" Background="#162238" Foreground="#F08E2F"/>
-                            <DockPanel Margin="0,6,0,0">
-                                <TextBlock x:Name="txtCarPointTime" Text="已用时：00:00:00" Foreground="{StaticResource SubTextBrush}"/>
-                                <TextBlock x:Name="txtCarPointEstimatedTime" Text="预计用时：00:00:00" Foreground="{StaticResource SubTextBrush}" HorizontalAlignment="Right"/>
-                            </DockPanel>
-                        </StackPanel>
+                        <Grid Grid.Row="3" Visibility="Collapsed">
+                            <TextBox x:Name="txtScriptLog"/>
+                            <TextBox x:Name="txtPointLog"/>
+                            <ProgressBar x:Name="PrgPointToZero"/>
+                            <TextBlock x:Name="txtCarPointTime"/>
+                            <TextBlock x:Name="txtCarPointEstimatedTime"/>
+                        </Grid>
                     </Grid>
                 </Border>
             </Grid>

@@ -1,222 +1,138 @@
 ﻿using System;
+using System.Collections.ObjectModel;
 using System.IO;
 using System.Text;
-using System.Windows.Controls;
+using System.Text.RegularExpressions;
+using System.Windows.Threading;
 
 namespace FH_WPF
 {
     internal static class ClsLogger
     {
-        // 目标 TextBox（可为 null）
-        private static TextBox? _globalTextBox;
-        private static TextBox? _scriptTextBox;
-        private static TextBox? _pointTextBox;
+        /// <summary>日志条目集合，绑定到 UI ListView</summary>
+        public static ObservableCollection<LogEntry> Entries { get; } = new ObservableCollection<LogEntry>();
+
+        private static Dispatcher? _dispatcher;
 
         // 日志目录
         private static string _logDirectory = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Logs");
         // 文件写入锁
         private static readonly object _fileLock = new object();
 
+        // 解析消息开头的 [级别] 标记，例如 "[信息] 脚本已启动"
+        private static readonly Regex _levelRegex = new Regex(@"^\[([^\]]+)\]\s*", RegexOptions.Compiled);
+
         /// <summary>
-        /// 初始化 logger，传入三个日志 TextBox，可选指定日志目录
+        /// 初始化 logger，传入 UI Dispatcher 用于跨线程更新，可选指定日志目录。
+        /// 旧签名保留以向后兼容（TextBox 参数被忽略）。
         /// </summary>
-        public static void Init(TextBox? globalTextBox, TextBox? scriptTextBox = null, TextBox? pointTextBox = null, string? logDirectory = null)
+        public static void Init(object? ignored1 = null, object? ignored2 = null, object? ignored3 = null, string? logDirectory = null)
         {
-            _globalTextBox = globalTextBox;
-            _scriptTextBox = scriptTextBox;
-            _pointTextBox = pointTextBox;
+            _dispatcher = System.Windows.Application.Current?.Dispatcher;
 
             if (!string.IsNullOrWhiteSpace(logDirectory))
-            {
                 _logDirectory = logDirectory!;
-            }
 
             try
             {
                 if (!Directory.Exists(_logDirectory))
-                {
                     Directory.CreateDirectory(_logDirectory);
-                }
             }
-            catch
-            {
-                // 忽略目录创建错误，写文件时会再次尝试
-            }
+            catch { }
         }
+
+        /// <summary>默认写全局日志（兼容旧调用）</summary>
+        public static void Log(string message) => LogWithModule(message, "系统");
+
+        public static void LogGlobal(string message) => LogWithModule(message, "系统");
+
+        public static void LogScript(string message) => LogWithModule(message, "脚本");
+
+        public static void LogPoint(string message) => LogWithModule(message, "熟练度");
 
         /// <summary>
-        /// 默认写全局日志（兼容旧调用）
+        /// 带明确级别和模块的结构化日志写入。
         /// </summary>
-        public static void Log(string message)
+        public static void LogStructured(string level, string module, string content)
         {
-            LogGlobal(message);
-        }
-
-        public static void LogGlobal(string message)
-        {
-            LogInternal(message, "全局", _globalTextBox);
-        }
-
-        public static void LogScript(string message)
-        {
-            LogInternal(message, "脚本", _scriptTextBox);
-        }
-
-        public static void LogPoint(string message)
-        {
-            LogInternal(message, "点数", _pointTextBox);
-        }
-
-        private static void LogInternal(string message, string category, TextBox? targetTextBox)
-        {
-            message ??= string.Empty;
+            content ??= string.Empty;
             var now = DateTime.Now;
-            var fileLine = $"[{now:yyyy-MM-dd HH:mm:ss.fff}] [{category}] {message}";
-            var uiLine = $"[{now:HH:mm:ss}] [{category}] {message}";
-
-            // 写入文件（按日期分文件）
-            try
-            {
-                var filePath = Path.Combine(_logDirectory, now.ToString("yyyy-MM-dd") + ".log");
-                lock (_fileLock)
-                {
-                    var dir = Path.GetDirectoryName(filePath);
-                    if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir))
-                    {
-                        Directory.CreateDirectory(dir);
-                    }
-
-                    using (var sw = new StreamWriter(filePath, true, Encoding.UTF8))
-                    {
-                        sw.WriteLine(fileLine);
-                    }
-                }
-            }
-            catch
-            {
-                // 忽略文件写入错误，保证不会抛到调用方
-            }
-
-            // 更新 TextBox（如果有）
-            try
-            {
-                if (targetTextBox != null)
-                {
-                    var disp = targetTextBox.Dispatcher;
-                    if (disp != null)
-                    {
-                        // 如果当前线程是 UI 线程，直接更新；否则使用同步的 Invoke 保证在返回前完成更新，避免日志丢失
-                        try
-                        {
-                            if (disp.CheckAccess())
-                            {
-                                if (targetTextBox.Text.Length > 0)
-                                    targetTextBox.AppendText(Environment.NewLine + uiLine);
-                                else
-                                    targetTextBox.AppendText(uiLine);
-
-                                targetTextBox.ScrollToEnd();
-                            }
-                            else
-                            {
-                                disp.Invoke(new Action(() =>
-                                {
-                                    try
-                                    {
-                                        if (targetTextBox.Text.Length > 0)
-                                            targetTextBox.AppendText(Environment.NewLine + uiLine);
-                                        else
-                                            targetTextBox.AppendText(uiLine);
-
-                                        targetTextBox.ScrollToEnd();
-                                    }
-                                    catch { }
-                                }), System.Windows.Threading.DispatcherPriority.Input);
-                            }
-                        }
-                        catch (Exception)
-                        {
-                            // 如果更新目标 TextBox 失败，尝试回退写入全局日志
-                            try
-                            {
-                                if (_globalTextBox != null)
-                                {
-                                    var gdisp = _globalTextBox.Dispatcher;
-                                    if (gdisp != null)
-                                    {
-                                        if (gdisp.CheckAccess())
-                                        {
-                                            _globalTextBox.AppendText(Environment.NewLine + uiLine);
-                                            _globalTextBox.ScrollToEnd();
-                                        }
-                                        else
-                                        {
-                                            gdisp.Invoke(new Action(() =>
-                                            {
-                                                try
-                                                {
-                                                    _globalTextBox.AppendText(Environment.NewLine + uiLine);
-                                                    _globalTextBox.ScrollToEnd();
-                                                }
-                                                catch { }
-                                            }), System.Windows.Threading.DispatcherPriority.Input);
-                                        }
-                                    }
-                                }
-                            }
-                            catch { }
-                        }
-                    }
-                    else
-                    {
-                        // Dispatcher 不可用时回退到全局日志（如果存在）
-                        try
-                        {
-                            if (_globalTextBox != null)
-                            {
-                                var gdisp = _globalTextBox.Dispatcher;
-                                if (gdisp != null)
-                                {
-                                    if (gdisp.CheckAccess())
-                                    {
-                                        _globalTextBox.AppendText(Environment.NewLine + uiLine);
-                                        _globalTextBox.ScrollToEnd();
-                                    }
-                                    else
-                                    {
-                                        gdisp.Invoke(new Action(() =>
-                                        {
-                                            try
-                                            {
-                                                _globalTextBox.AppendText(Environment.NewLine + uiLine);
-                                                _globalTextBox.ScrollToEnd();
-                                            }
-                                            catch { }
-                                        }), System.Windows.Threading.DispatcherPriority.Input);
-                                    }
-                                }
-                            }
-                        }
-                        catch { }
-                    }
-                }
-            }
-            catch
-            {
-                // 忽略 dispatcher 调用错误
-            }
+            WriteToFile(now, level, module, content);
+            AppendEntry(new LogEntry(level, module, content));
         }
 
-        /// <summary>
-        /// 写异常日志，包含堆栈信息
-        /// </summary>
+        /// <summary>写异常日志，包含堆栈信息</summary>
         public static void LogException(Exception ex, string? note = null)
         {
             if (ex == null) return;
             var sb = new StringBuilder();
             if (!string.IsNullOrEmpty(note)) sb.AppendLine(note);
             sb.AppendLine(ex.ToString());
-            LogGlobal(sb.ToString());
+            LogWithModule(sb.ToString(), "系统");
+        }
+
+        // ── 私有方法 ────────────────────────────────────────────
+
+        /// <summary>从消息里解析 [级别] 前缀，剩余部分为内容</summary>
+        private static void LogWithModule(string message, string module)
+        {
+            message ??= string.Empty;
+            var m = _levelRegex.Match(message);
+            string level;
+            string content;
+            if (m.Success)
+            {
+                level = MapLevel(m.Groups[1].Value);
+                content = message[m.Length..].Trim();
+            }
+            else
+            {
+                level = "信息";
+                content = message.Trim();
+            }
+            LogStructured(level, module, content);
+        }
+
+        /// <summary>将各种前缀文字统一为标准级别</summary>
+        private static string MapLevel(string raw) => raw switch
+        {
+            "成功" or "完成" => "成功",
+            "警告" or "注意" => "警告",
+            "错误" or "异常" or "失败" => "错误",
+            _ => "信息",
+        };
+
+        private static void WriteToFile(DateTime now, string level, string module, string content)
+        {
+            try
+            {
+                var line = $"[{now:yyyy-MM-dd HH:mm:ss.fff}] [{level}] [{module}] {content}";
+                var filePath = Path.Combine(_logDirectory, now.ToString("yyyy-MM-dd") + ".log");
+                lock (_fileLock)
+                {
+                    var dir = Path.GetDirectoryName(filePath);
+                    if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir))
+                        Directory.CreateDirectory(dir);
+                    using var sw = new StreamWriter(filePath, true, Encoding.UTF8);
+                    sw.WriteLine(line);
+                }
+            }
+            catch { }
+        }
+
+        private static void AppendEntry(LogEntry entry)
+        {
+            try
+            {
+                var disp = _dispatcher ?? System.Windows.Application.Current?.Dispatcher;
+                if (disp == null) return;
+
+                if (disp.CheckAccess())
+                    Entries.Add(entry);
+                else
+                    disp.Invoke(() => Entries.Add(entry), DispatcherPriority.Input);
+            }
+            catch { }
         }
     }
 }
