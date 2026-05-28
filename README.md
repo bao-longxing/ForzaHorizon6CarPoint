@@ -51,7 +51,7 @@ Horizon 6 脚本工具是一款基于计算机视觉与硬件级模拟的《极�
 |------|------|
 | 框架 | .NET 10.0 WPF (Windows) |
 | 语言 | C# 13 |
-| OCR | Sdcb.PaddleOCR + PaddleOCR ChineseV3 模型 |
+| OCR | Sdcb.PaddleOCR + PaddleOCR ChineseV5 模型 |
 | 图像处理 | OpenCvSharp4 |
 | 画面采集 | OBS WebSocket (obs-websocket-dotnet) |
 | 硬件模拟 | 底层驱动 DLL (device_control.dll) |
