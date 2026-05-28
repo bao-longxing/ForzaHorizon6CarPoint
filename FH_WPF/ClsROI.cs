@@ -347,6 +347,31 @@ namespace FH_WPF
         }
 
         /// <summary>
+        /// 使用硬编码的默认值初始化目标矩形字典。
+        /// 这些值对应 targetRects.json 文件中的内容。
+        /// </summary>
+        public static void InitializeDefaultTargetRects()
+        {
+            TargetRects.Clear();
+            TargetRects[UIElem.选项] = new OpenCvSharp.Rect(33, 630, 285, 35);
+            TargetRects[UIElem.前往制造商] = new OpenCvSharp.Rect(406, 704, 170, 26);
+            TargetRects[UIElem.车辆框] = new OpenCvSharp.Rect(528, 156, 222, 165);
+            TargetRects[UIElem.升级与调教] = new OpenCvSharp.Rect(51, 426, 263, 32);
+            TargetRects[UIElem.车辆熟练度] = new OpenCvSharp.Rect(52, 613, 263, 37);
+            TargetRects[UIElem.车库中当前车型] = new OpenCvSharp.Rect(109, 26, 250, 38);
+            TargetRects[UIElem.大世界安娜] = new OpenCvSharp.Rect(70, 716, 69, 23);
+            TargetRects[UIElem.加点界面熟练度点数] = new OpenCvSharp.Rect(436, 651, 90, 29);
+            TargetRects[UIElem.重新开始] = new OpenCvSharp.Rect(158, 704, 90, 25);
+            TargetRects[UIElem.收集簿] = new OpenCvSharp.Rect(53, 542, 176, 31);
+            TargetRects[UIElem.车库品牌] = new OpenCvSharp.Rect(314, 115, 174, 25);
+            TargetRects[UIElem.车库界面我的车辆按钮] = new OpenCvSharp.Rect(52, 384, 260, 35);
+            TargetRects[UIElem.从车库移除车辆] = new OpenCvSharp.Rect(444, 471, 473, 35);
+            TargetRects[UIElem.技术点数可用] = new OpenCvSharp.Rect(377, 545, 205, 35);
+            TargetRects[UIElem.车辆卡片界面当前驾驶的车辆] = new OpenCvSharp.Rect(291, 154, 226, 169);
+            TargetRects[UIElem.整页] = new OpenCvSharp.Rect(0, 0, 1360, 768);
+        }
+
+        /// <summary>
         /// 将目标矩形字典保存为 JSON 文件（覆盖现有文件）。
         /// 使用枚举 UIElem 作为键，会以枚举名（字符串）写入 JSON 文件。
         /// </summary>
@@ -378,20 +403,26 @@ namespace FH_WPF
         /// <summary>
         /// 从 JSON 文件加载目标矩形字典。
         /// JSON 文件中键为枚举名（字符串），该方法会尝试解析回 UIElem 枚举键。
+        /// 如果文件不存在或加载失败，将使用硬编码的默认值。
         /// </summary>
         /// <param name="filePath">JSON 文件路径</param>
-        /// <returns>加载成功返回字典；失败或文件不存在返回空字典。</returns>
         public static void LoadTargetRectsFromJson(string filePath)
         {
             try
             {
                 if (!File.Exists(filePath))
+                {
+                    InitializeDefaultTargetRects();
                     return;
+                }
 
                 var json = File.ReadAllText(filePath);
                 var map = JsonSerializer.Deserialize<Dictionary<string, RectDto>>(json);
                 if (map == null)
+                {
+                    InitializeDefaultTargetRects();
                     return;
+                }
 
                 foreach (var kv in map)
                 {
@@ -403,7 +434,8 @@ namespace FH_WPF
             }
             catch
             {
-                ClsLogger.Log("Failed to load target rects from JSON. The file may be missing or corrupted.");
+                ClsLogger.Log("Failed to load target rects from JSON. The file may be missing or corrupted. Using default values.");
+                InitializeDefaultTargetRects();
             }
         }
         #endregion
