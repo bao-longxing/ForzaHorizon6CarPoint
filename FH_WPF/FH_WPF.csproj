@@ -8,6 +8,7 @@
     <UseWPF>true</UseWPF>
     <Platforms>AnyCPU;x86;x64</Platforms>
     <ApplicationIcon>Resouce\FH.ico</ApplicationIcon>
+    <Authors>1282297544</Authors>
   </PropertyGroup>
 
   <ItemGroup>
