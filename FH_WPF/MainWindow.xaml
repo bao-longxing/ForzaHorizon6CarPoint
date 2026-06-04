@@ -171,7 +171,7 @@
                             <TextBlock Text="购买数量" Grid.Row="4" Foreground="{StaticResource SubTextBrush}" VerticalAlignment="Center"/>
                             <TextBox x:Name="txtBuyCarNum" Grid.Row="4" Grid.Column="1" Height="34" Background="#0A1322" Foreground="#DDE8FF" BorderBrush="#2A3A56" Text="33" VerticalContentAlignment="Center"/>
                             <TextBlock Text="蓝图代码" Grid.Row="5" Foreground="{StaticResource SubTextBrush}" VerticalAlignment="Center"/>
-                            <TextBox x:Name="txtScriptCode" Grid.Row="5" Grid.Column="1" Height="34" Background="#0A1322" Foreground="#DDE8FF" BorderBrush="#2A3A56" Text="503944655" VerticalContentAlignment="Center"/>
+                            <TextBox x:Name="txtScriptCode" Grid.Row="5" Grid.Column="1" Height="34" Background="#0A1322" Foreground="#DDE8FF" BorderBrush="#2A3A56" Text="170516901" VerticalContentAlignment="Center"/>
                             <TextBlock Text="单局点数" Grid.Row="6" Foreground="{StaticResource SubTextBrush}" VerticalAlignment="Center"/>
                             <TextBox x:Name="txtSinglePoint" Grid.Row="6" Grid.Column="1" Height="34" Background="#0A1322" Foreground="#DDE8FF" BorderBrush="#2A3A56" Text="9" VerticalContentAlignment="Center"/>
                         </Grid>
@@ -305,14 +305,6 @@
                                 <TextBlock x:Name="txtRaceEstimatedTime" Text="预计用时：00:00:00" Foreground="{StaticResource SubTextBrush}" HorizontalAlignment="Right"/>
                             </DockPanel>
                         </StackPanel>
-
-                        <Grid Grid.Row="3" Visibility="Collapsed">
-                            <TextBox x:Name="txtScriptLog"/>
-                            <TextBox x:Name="txtPointLog"/>
-                            <ProgressBar x:Name="PrgPointToZero"/>
-                            <TextBlock x:Name="txtCarPointTime"/>
-                            <TextBlock x:Name="txtCarPointEstimatedTime"/>
-                        </Grid>
                     </Grid>
                 </Border>
             </Grid>

@@ -392,19 +392,19 @@ namespace FH_WPF
         private static int _lastClickX = int.MinValue;
         private static int _lastClickY = int.MinValue;
         // 时间窗（毫秒）与像素阈值（像素距离内视为同一位置）
-        private const int ClickDebounceMs = 800;
-        private const int ClickDebounceDistance = 8;
+        private const int ClickDebounceMs = 1000;
+        private const int ClickDebounceDistance = 20;
         #endregion
 
         #region 功能: 高级操作
         public static bool CheckUpvote()
         {
             //检测是否出现点赞框
-            bool rst = TryRecognizeAndClickROI(ClsROI.UIElem.整页, "评价", shouldClick: false, debug: false);
+            bool rst = TryRecognizeAndClickROI(ClsROI.UIElem.整页, "评价", shouldClick: false, debug: false, log: false);
 
             if (rst)
             {
-                rst &= TryRecognizeAndClickROI(ClsROI.UIElem.整页, "取消", shouldClick: true, debug: false);
+                rst &= TryRecognizeAndClickROI(ClsROI.UIElem.整页, "取消", shouldClick: true, debug: false, log: false);
             }
             //点击后等待退出
             Thread.Sleep(1500);
@@ -876,7 +876,7 @@ namespace FH_WPF
                     bool clickedBrandNew = false;
                     int OldTypeCarNum = 0;//非全新但匹配车型数量（用于多重翻页）
 
-                    for (int round = 0; round < 20 && !clickedBrandNew; round++)
+                    for (int round = 0; round < 40 && !clickedBrandNew; round++)
                     {
                         // 步骤14: 查找车型与'全新'前检查取消
                         CheckCancel("步骤14", s => ClsLogger.LogPoint(s));
@@ -1026,16 +1026,17 @@ namespace FH_WPF
                                 // 步骤19: 点击'全新'之前检查取消
                                 CheckCancel("步骤19", s => ClsLogger.LogPoint(s));
                                 Thread.Sleep(500);
-                                ClickKeyAndWait(Key.Enter, 500, nameof(UpCarPoint));
-                                ClickKeyAndWait(Key.Up, 100, nameof(UpCarPoint));
-                                ClickKeyAndWait(Key.Up, 100, nameof(UpCarPoint));
-                                ClickKeyAndWait(Key.Up, 100, nameof(UpCarPoint));
-                                ClickKeyAndWait(Key.Up, 100, nameof(UpCarPoint));
-                                ClickKeyAndWait(Key.Up, 100, nameof(UpCarPoint));
-                                ClickKeyAndWait(Key.Enter, 0, nameof(UpCarPoint));
-                                ClsLogger.LogPoint("步骤19: 已点击全新并按下回车，等待12秒");
+                                //上车
+                                bool EnterCarResult = TryRecognizeAndClickROI(ClsROI.UIElem.上车, "上车", true);
+                                //失败重试
+                                if (!EnterCarResult)
+                                {
+                                    ClickKeyAndWait(Key.Enter, 1000, nameof(UpCarPoint));
+                                    TryRecognizeAndClickROI(ClsROI.UIElem.上车, "上车", true);
+                                }
+                                ClsLogger.LogPoint("步骤19: 已点击全新并上车，等待12秒");
                                 Thread.Sleep(12000);
-                                ClickKeyAndWait(Key.Escape, 0, nameof(UpCarPoint));
+                                ClickKeyAndWait(Key.Escape, 500, nameof(UpCarPoint));
                                 ClsLogger.LogPoint("步骤11: 已按下 ESC");
 
                                 clickedBrandNew = true;
@@ -1095,7 +1096,7 @@ namespace FH_WPF
                         return;
                     }
 
-                    Thread.Sleep(500);
+                    Thread.Sleep(1000);
 
                     // 25: 使用 TryRecognizeAndClickROI 点击车辆熟练度
                     CheckCancel("步骤25", s => ClsLogger.LogPoint(s));
@@ -1172,9 +1173,12 @@ namespace FH_WPF
                         SingelCarPointComplete?.Invoke(null, EventArgs.Empty);
                     });
 
+
                     // 根据检测到的点数判断执行完按键序列后是否还应继续。
                     // 如果当前点数减去 30 后仍然 >= 30，则继续；否则不重复执行（避免剩余点数不足以再次升级）。
                     int remainingAfter = currentPoint - 30;
+                    //发送点数给UI
+                    System.Windows.Application.Current.Dispatcher.BeginInvoke(() => { DetectPoint?.Invoke(null, remainingAfter); });
                     if (remainingAfter >= 30)
                     {
                         ClsLogger.LogPoint($"循环继续: 点数 {currentPoint} >= 30，扣除30后剩余 {remainingAfter} >= 30，继续升级同一辆车");
@@ -1208,6 +1212,7 @@ namespace FH_WPF
                 if (finished)
                 {
                     try { System.Windows.Application.Current.Dispatcher.BeginInvoke(() => { AllCarPointComplete?.Invoke(null, EventArgs.Empty); }); } catch { }
+                    ClsLogger.LogPoint($"已发送车辆升级完成。");
                 }
                 #endregion
             }
@@ -1402,9 +1407,10 @@ namespace FH_WPF
             ClsROI.UIElem roiElement,
             string? searchText = null,
             bool shouldClick = false,
-            bool debug = false)
+            bool debug = false,
+            bool log = true)
         {
-            return TryRecognizeAndClickROI(roiElement, out _, searchText, shouldClick, debug);
+            return TryRecognizeAndClickROI(roiElement, out _, searchText, shouldClick, debug, log);
         }
 
         public static bool TryRecognizeAndClickROI(
@@ -1412,7 +1418,8 @@ namespace FH_WPF
             out List<PaddleOcrResultRegion> regions,
             string? searchText = null,
             bool shouldClick = false,
-            bool debug = false)
+            bool debug = false,
+            bool log = true)
         {
             regions = new List<PaddleOcrResultRegion>();
             try
@@ -1461,7 +1468,10 @@ namespace FH_WPF
                     var ocrRst = ClsOCR.RecognizeFromBytes(croppedBytes);
                     if (ocrRst?.Regions == null || ocrRst.Regions.Length == 0)
                     {
-                        ClsLogger.LogGlobal($"TryRecognizeAndClickROI: OCR 未识别到任何文本 - {roiElement}");
+                        if (log)
+                        {
+                            ClsLogger.LogGlobal($"TryRecognizeAndClickROI: OCR 未识别到任何文本 - {roiElement}");
+                        }
                         return false;
                     }
 
@@ -1494,7 +1504,10 @@ namespace FH_WPF
 
                     if (!found)
                     {
-                        ClsLogger.LogGlobal($"TryRecognizeAndClickROI: 未找到文本 '{searchText}' - {roiElement}");
+                        if (log)
+                        {
+                            ClsLogger.LogGlobal($"TryRecognizeAndClickROI: 未找到文本 '{searchText}' - {roiElement}");
+                        }
                         return false;
                     }
 
@@ -1625,7 +1638,7 @@ namespace FH_WPF
             RebuildCancelTokenIfNeeded();
             bool finished = false;
             const int restartDetectTimeoutMs = 120000; // 2分钟超时
-            const int restartDetectIntervalMs = 500; // 每500ms检测一次
+            const int restartDetectIntervalMs = 1200; // 每1200ms检测一次
 
             // 使用公共 DebugShow(mat, title, enabled) 与 CheckCancel(stepName, logAction)
 
@@ -2042,7 +2055,7 @@ namespace FH_WPF
                         Thread.Sleep(restartDetectIntervalMs);
 
                         // 检测"重新开始"按钮 - 使用新的公共方法
-                        if (TryRecognizeAndClickROI(ClsROI.UIElem.重新开始, "重新开始", shouldClick: false, debug: debug))
+                        if (TryRecognizeAndClickROI(ClsROI.UIElem.重新开始, "重新开始", shouldClick: false, debug: debug, false))
                         {
                             restartButtonDetected = true;
                             ClsLogger.LogScript("步骤36: 检测到'重新开始'按钮，重置总超时计时器");
@@ -2078,7 +2091,6 @@ namespace FH_WPF
                         CheckCancel("步骤40");
                         ClsLogger.LogScript($"步骤40: 已完成 {loopCount} 次循环，点数: {currentPoints}，按 Enter 等待 20 秒");
                         ClickKeyAndWait(Key.Enter, 20000, nameof(GotoScriptRace));
-
                         ClsLogger.LogScript("步骤41: 触发完成事件");
                         finished = true;
                         raceComplete = true;
@@ -2088,10 +2100,7 @@ namespace FH_WPF
                         // 还需继续循环
                         CheckCancel("步骤42");
                         ClsLogger.LogScript($"步骤42: 循环 {loopCount}/{loopsRequired}，点数 {currentPoints}，继续任务");
-
-                        // 触发点数变更事件（直接在流程中触发）
-                        System.Windows.Application.Current.Dispatcher.BeginInvoke(() => { DetectPoint?.Invoke(null, currentPoints); });
-
+                        
                         // 按 X 等待 400ms
                         ClickKeyAndWait(Key.X, 400, nameof(GotoScriptRace));
 
@@ -2409,7 +2418,7 @@ namespace FH_WPF
                 ClsLogicContorl_Ghub.Move(clickX, clickY, true);
                 Thread.Sleep(100);
                 // 使用统一的点击与等待封装，便于日志与行为一致
-                ClickMouseAndWait(1, 100, logTag);
+                ClickMouseAndWait(1, 500, logTag);
                 Debug.WriteLine($"x = {clickX} y = {clickY}");
 
                 // 记录本次点击位置与时间

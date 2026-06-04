@@ -8,7 +8,6 @@ using System.Windows.Input;
 using System.Windows.Interop;
 using System.Windows.Media;
 using System.Windows.Threading;
-using System.Runtime.InteropServices;
 
 namespace FH_WPF
 {
@@ -99,7 +98,7 @@ namespace FH_WPF
             // 加载持久化的界面数据
             try { LoadSettings(); } catch { }
             _startTime = DateTime.Now;
-            _timer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
+            _timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(500) };
             _timer.Tick += Timer_Tick;
             _timer.Start();
 
@@ -271,6 +270,8 @@ namespace FH_WPF
         private void ClsGameControl_DetectPoint(object? sender, int e)
         {
             var now = DateTime.Now;
+
+            // --- 1. 计算两次点数更新的时间间隔 ---
             if (_lastPointUpdateTime.HasValue)
             {
                 var interval = now - _lastPointUpdateTime.Value;
@@ -279,20 +280,22 @@ namespace FH_WPF
                     _pointUpdateInterval = interval;
                 }
             }
-
             _lastPointUpdateTime = now;
-            // 在更新前记录之前的点数
-            _previousPoint = _currentPoint;
-            _currentPoint = Math.Max(0, Math.Min(MaxPoint, e));
 
+            // --- 2. 更新点数（限制在 0 - 999 之间） ---
+            _previousPoint = _currentPoint;
+            _currentPoint = Math.Max(0, Math.Min(999, e)); // MaxPoint 固定为 999
+
+            // --- 3. 更新 UI 文本与进度条 ---
             txtPointTotal.Text = $"车辆热练度总数： {_currentPoint}";
-            var progressToMax = ((double)_currentPoint / MaxPoint) * 100;
-            var progressToZero = (1 - ((double)_currentPoint / MaxPoint)) * 100;
+
+            // 计算点数趋近 999 和趋近 0 的百分比进度
+            var progressToMax = ((double)_currentPoint / 999) * 100;
+            var progressToZero = (1 - ((double)_currentPoint / 999)) * 100;
+
+            // 根据车辆运行状态统一进度条的值
             var unifiedProgress = _carPointRunning ? progressToZero : progressToMax;
             PrgPointTo999.Value = unifiedProgress;
-            PrgPointToZero.Value = unifiedProgress;
-
-            UpdateEstimatedTime();
         }
         #endregion
 
@@ -861,7 +864,6 @@ namespace FH_WPF
                 _raceRunning = true;
                 // 立即更新一次 UI
                 UpdateRaceTime();
-                UpdateEstimatedTime();
             }
             catch (Exception ex)
             {
@@ -891,8 +893,6 @@ namespace FH_WPF
                     _carPointRunning = false;
                     UpdateCarPointTime();
                 }
-
-                UpdateEstimatedTime();
             }
             catch (Exception ex)
             {
@@ -913,7 +913,6 @@ namespace FH_WPF
                 _carPointStartTime = DateTime.Now;
                 _carPointRunning = true;
                 UpdateCarPointTime();
-                UpdateEstimatedTime();
             }
             catch (Exception ex)
             {
@@ -1003,11 +1002,10 @@ namespace FH_WPF
         {
             try
             {
-                if (txtRaceTime == null || txtCarPointTime == null) return;
+                if (txtRaceTime == null) return;
                 if (!_carPointStartTime.HasValue)
                 {
                     txtRaceTime.Text = "已用时：00:00:00";
-                    txtCarPointTime.Text = "已用时：00:00:00";
                     return;
                 }
 
@@ -1015,130 +1013,151 @@ namespace FH_WPF
                 var hours = (int)elapsed.TotalHours;
                 var value = $"已用时：{hours:00}:{elapsed.Minutes:00}:{elapsed.Seconds:00}";
                 txtRaceTime.Text = value;
-                txtCarPointTime.Text = value;
             }
             catch { }
         }
 
+        /// <summary>
+        /// 更新预计用时显示（仅使用 txtRaceEstimatedTime）
+        /// </summary>
         private void UpdateEstimatedTime()
         {
             try
             {
-                if (txtRaceEstimatedTime == null || txtCarPointEstimatedTime == null)
-                {
-                    return;
-                }
+                if (txtRaceEstimatedTime == null) return;
 
-                if (_currentPoint >= MaxPoint)
+                // 已完成（点数达到999）
+                if (_currentPoint >= 999)
                 {
                     txtRaceEstimatedTime.Text = "预计用时：00:00:00";
-                    txtCarPointEstimatedTime.Text = "预计用时：00:00:00";
                     return;
                 }
 
+                // 无效的时间间隔
                 if (!_pointUpdateInterval.HasValue || _pointUpdateInterval.Value <= TimeSpan.Zero)
                 {
                     txtRaceEstimatedTime.Text = "预计用时：--:--:--";
-                    txtCarPointEstimatedTime.Text = "预计用时：--:--:--";
                     return;
                 }
 
-                var leftPoint = MaxPoint - _currentPoint;
                 var interval = _pointUpdateInterval.Value;
-                // 计算自上次点数更新以来已过去的时间，用于让预计时间随时间减少
-                var elapsedSinceLastPoint = TimeSpan.Zero;
-                if (_lastPointUpdateTime.HasValue)
-                {
-                    elapsedSinceLastPoint = DateTime.Now - _lastPointUpdateTime.Value;
-                    if (elapsedSinceLastPoint < TimeSpan.Zero) elapsedSinceLastPoint = TimeSpan.Zero;
-                }
+                var elapsed = ComputeElapsedSinceLastPoint(interval);
 
+                string displayText;
                 if (_raceRunning)
                 {
-                    // 优先使用观测到的每次更新的增加量（delta）进行估算（如可用）
-                    if (_previousPoint.HasValue)
-                    {
-                        var delta = _currentPoint - _previousPoint.Value; // positive if points are increasing per update
-                        if (delta > 0)
-                        {
-                            var leftToMax = MaxPoint - _currentPoint;
-                            var intervalsNeeded = leftToMax / (double)delta;
-                            var raceTicksByDelta = (long)(intervalsNeeded * interval.Ticks);
-                            var raceRemainingTicksByDelta = raceTicksByDelta - elapsedSinceLastPoint.Ticks;
-                            if (raceRemainingTicksByDelta < 0) raceRemainingTicksByDelta = 0;
-                            var raceEstimatedFromDelta = TimeSpan.FromTicks(raceRemainingTicksByDelta);
-                            var value = $"预计用时：{FormatTimeSpan(raceEstimatedFromDelta)}";
-                            txtRaceEstimatedTime.Text = value;
-                            txtCarPointEstimatedTime.Text = value;
-                            return;
-                        }
-                        // 如果 delta <= 0，则回退到使用配置的单圈点数估算
-                    }
-
-                    // 回退到使用配置的单圈点数估算
-                    var singlePoint = ParseSingleRacePoint();
-                    var raceTicksBySinglePoint = (long)((leftPoint / (double)singlePoint) * interval.Ticks);
-                    var raceRemainingTicksBySinglePoint = raceTicksBySinglePoint - elapsedSinceLastPoint.Ticks;
-                    if (raceRemainingTicksBySinglePoint < 0) raceRemainingTicksBySinglePoint = 0;
-                    var raceEstimatedFromSinglePoint = TimeSpan.FromTicks(raceRemainingTicksBySinglePoint);
-                    var fallbackValue = $"预计用时：{FormatTimeSpan(raceEstimatedFromSinglePoint)}";
-                    txtRaceEstimatedTime.Text = fallbackValue;
-                    txtCarPointEstimatedTime.Text = fallbackValue;
-                    return;
+                    displayText = ComputeRaceEstimatedTime(interval, elapsed);
                 }
-
-                if (_carPointRunning)
+                else if (_carPointRunning)
                 {
-                    // 使用最近两次点数读取差值来估算点数降至阈值（PointModeSingleLoopPoint）所需时间
-                    if (_previousPoint.HasValue)
-                    {
-                        var delta = _previousPoint.Value - _currentPoint; // positive if points are decreasing
-                        if (delta > 0)
-                        {
-                            var leftToThreshold = _currentPoint - PointModeSingleLoopPoint;
-                            if (leftToThreshold <= 0)
-                            {
-                                txtCarPointEstimatedTime.Text = "预计用时：00:00:00";
-                                txtRaceEstimatedTime.Text = "预计用时：00:00:00";
-                                return;
-                            }
-
-                            // 需要多少个间隔：leftToThreshold / delta
-                            var intervalsNeeded = leftToThreshold / (double)delta;
-                            var carPointTotalRemainingTicks = (long)(intervalsNeeded * interval.Ticks);
-                            var carPointRemainingTicks = carPointTotalRemainingTicks - elapsedSinceLastPoint.Ticks;
-                            if (carPointRemainingTicks < 0) carPointRemainingTicks = 0;
-                            var carPointEstimatedTimeSpan = TimeSpan.FromTicks(carPointRemainingTicks);
-                            var value = $"预计用时：{FormatTimeSpan(carPointEstimatedTimeSpan)}";
-                            txtCarPointEstimatedTime.Text = value;
-                            txtRaceEstimatedTime.Text = value;
-                            return;
-                        }
-                        else
-                        {
-                            // 未观测到下降，无法估算
-                            txtCarPointEstimatedTime.Text = "预计用时：--:--:--";
-                            txtRaceEstimatedTime.Text = "预计用时：--:--:--";
-                            return;
-                        }
-                    }
-                    else
-                    {
-                        // 无可用的之前点数，无法估算
-                        txtCarPointEstimatedTime.Text = "预计用时：--:--:--";
-                        txtRaceEstimatedTime.Text = "预计用时：--:--:--";
-                        return;
-                    }
+                    displayText = ComputeCarPointEstimatedTime(interval, elapsed);
+                }
+                else
+                {
+                    displayText = "预计用时：--:--:--";
                 }
 
-                txtRaceEstimatedTime.Text = "预计用时：--:--:--";
-                txtCarPointEstimatedTime.Text = "预计用时：--:--:--";
+                txtRaceEstimatedTime.Text = displayText;
             }
-            catch
+            catch (Exception ex)
             {
+                System.Diagnostics.Debug.WriteLine($"更新预计时间出错: {ex.Message}");
+                txtRaceEstimatedTime.Text = "预计用时：--:--:--";
             }
         }
 
+        /// <summary>
+        /// 计算自上一个点位更新以来经过的时间，并进行边界保护。
+        /// </summary>
+        /// <param name="interval">标准点位更新时间间隔</param>
+        /// <returns>经过的时间（限制在 [0, interval] 范围内）</returns>
+        private TimeSpan ComputeElapsedSinceLastPoint(TimeSpan interval)
+        {
+            if (!_lastPointUpdateTime.HasValue) return TimeSpan.Zero;
+
+            // 真实计算从上次更新到现在过去了多久
+            var elapsed = DateTime.Now - _lastPointUpdateTime.Value;
+
+            if (elapsed < TimeSpan.Zero) elapsed = TimeSpan.Zero;
+
+            return elapsed;
+        }
+
+        /// <summary>
+        /// 根据比赛模式（递增点数）计算预计用时字符串。
+        /// </summary>
+        /// <param name="interval">点位更新时间间隔</param>
+        /// <param name="elapsedSinceLastPoint">自上次更新后经过的时间</param>
+        /// <returns>格式化的预计用时字符串，例如 "预计用时：01:23:45"</returns>
+        private string ComputeRaceEstimatedTime(TimeSpan interval, TimeSpan elapsedSinceLastPoint)
+        {
+            // 尝试使用最近两次点数的差值估算
+            if (_previousPoint.HasValue)
+            {
+                int delta = _currentPoint - _previousPoint.Value;
+
+                if (delta > 0)
+                {
+                    int remainingPoints = 999 - _currentPoint;
+                    return FormatEstimatedTime(remainingPoints, delta, interval, elapsedSinceLastPoint);
+                }
+            }
+
+            return "预计用时：--:--:--";
+        }
+
+        /// <summary>
+        /// 根据汽车点位模式（递减点数）计算预计用时字符串。
+        /// </summary>
+        /// <param name="interval">点位更新时间间隔</param>
+        /// <param name="elapsedSinceLastPoint">自上次更新后经过的时间</param>
+        /// <returns>格式化的预计用时字符串</returns>
+        private string ComputeCarPointEstimatedTime(TimeSpan interval, TimeSpan elapsedSinceLastPoint)
+        {
+            if (_previousPoint.HasValue)
+            {
+                int delta = _previousPoint.Value - _currentPoint; // 递减模式的步长
+                if (delta > 0)
+                {
+                    int remainingPoints = _currentPoint - PointModeSingleLoopPoint;
+                    if (remainingPoints <= 0)
+                        return "预计用时：00:00:00";
+
+                    return FormatEstimatedTime(remainingPoints, delta, interval, elapsedSinceLastPoint);
+                }
+            }
+
+            return "预计用时：--:--:--";
+        }
+
+        /// <summary>
+        /// 根据剩余点数、每间隔变化点数、时间间隔和已流逝时间，计算剩余所需时间并格式化。
+        /// </summary>
+        /// <param name="remainingPoints">剩余需要完成的点数</param>
+        /// <param name="deltaPerInterval">每个时间间隔变化的点数（步长）</param>
+        /// <param name="interval">点位更新时间间隔</param>
+        /// <param name="elapsedSinceLastPoint">当前间隔内已经流逝的时间</param>
+        /// <returns>格式化后的预计用时字符串</returns>
+        private string FormatEstimatedTime(int remainingPoints, int deltaPerInterval, TimeSpan interval, TimeSpan elapsedSinceLastPoint)
+        {
+            // 1. 计算剩余的点数还需要多少个周期的标准总时间
+            double intervalsNeeded = Math.Ceiling(remainingPoints / (double)deltaPerInterval);
+            long totalTicksNeeded = (long)(intervalsNeeded * interval.Ticks);
+
+            // 2. 减去当前周期内已经流逝的时间
+            long remainingTicks = totalTicksNeeded - elapsedSinceLastPoint.Ticks;
+
+            // 边界保护：如果算出来已经超时了（比如网络延迟没收到新点位）
+            // 不要让它显示负数，让它停留在 1 秒或者特定的等待提示
+            if (remainingTicks <= 0)
+            {
+                // 或者是返回 "即将更新..."
+                return "预计用时：00:00:01";
+            }
+
+            var estimatedTime = TimeSpan.FromTicks(remainingTicks);
+            return $"预计用时：{FormatTimeSpan(estimatedTime)}";
+        }
         private int ParseSingleRacePoint()
         {
             if (!int.TryParse(txtSinglePoint?.Text, out var singlePoint) || singlePoint <= 0)
