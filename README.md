@@ -14,7 +14,7 @@
 
 ## 项目简介
 
-Horizon 6 脚本工具是一款基于计算机视觉与硬件级模拟的《极限竞速：地平线 6》全自动化辅助工具。它通过 **OBS 截图 + PaddleOCR 文字识别 + 驱动级键鼠模拟**，实现游戏中刷蓝图、批量买车、技能加点、删车腾位等重复操作的完全无人值守。
+Horizon 6 脚本工具是一款基于计算机视觉与硬件级模拟的《极限竞速：地平线 6》全自动化辅助工具。它通过 **OBS 截图 + PaddleOCR 文字识别**，实现游戏中刷蓝图、批量买车、技能加点、删车腾位等重复操作的完全无人值守。
 
 > 核心目标：把地平线6里所有无聊的肝活，变成一键自动完成。
 
@@ -55,13 +55,7 @@ Horizon 6 脚本工具是一款基于计算机视觉与硬件级模拟的《极�
 | OCR | Sdcb.PaddleOCR + PaddleOCR ChineseV5 模型 |
 | 图像处理 | OpenCvSharp4 |
 | 画面采集 | OBS WebSocket (obs-websocket-dotnet) |
-| 硬件模拟 | 底层驱动 DLL (device_control.dll) |
 | 键盘钩子 | Windows API SetWindowsHookEx |
-
-### 为什么用驱动级模拟而不是 SendInput？
-
-游戏通常有反作弊保护，SendInput / mouse_event 等 Windows API 级别的模拟容易被检测拦截。通过底层驱动 DLL 发送键鼠指令，走的是**硬件驱动层**，兼容性更好、更不易被检测。
-
 ---
 
 ## 环境要求
