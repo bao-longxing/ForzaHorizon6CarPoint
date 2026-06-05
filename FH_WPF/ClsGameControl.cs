@@ -311,7 +311,7 @@ namespace FH_WPF
             }
         }
 
-        private static void ClickKeyAndWait(Key key, int waitMs, string methodName)
+        public static void ClickKeyAndWait(Key key, int waitMs, string methodName)
         {
             methodName = string.IsNullOrWhiteSpace(methodName) ? "Unknown" : methodName;
             string message = $"{methodName}: 按下 {GetKeyDisplayName(key)}，等待 {waitMs}ms";
@@ -331,7 +331,7 @@ namespace FH_WPF
             }
             // 在执行按键前检查是否已触发取消（使用 Point 日志用于与上层操作一致的记录）
             CheckCancel(methodName, s => ClsLogger.LogPoint(s));
-            ClsLogicContorl_Ghub.ClickKey(key);
+            ClsSendInput.ClickKey(key);
             Thread.Sleep(waitMs);
         }
 
@@ -356,7 +356,7 @@ namespace FH_WPF
 
             // 在执行鼠标点击前检查是否已触发取消
             CheckCancel(methodName, s => ClsLogger.LogPoint(s));
-            ClsLogicContorl_Ghub.ClickMouse(button);
+            ClsSendInput.ClickMouse(button);
             Thread.Sleep(waitMs);
         }
 
@@ -420,11 +420,10 @@ namespace FH_WPF
             FocusWindowByProcessName("forzahorizon6");
             TryGetWindowRectByProcessName("forzahorizon6", out OpenCvSharp.Rect rect);
             Thread.Sleep(1000);
-            ClsLogicContorl_Ghub.KeyDown(ClsLogicContorl_Ghub.ToGhubKey(Key.Enter));
+            ClsSendInput.KeyDown(Key.Enter);
             Thread.Sleep(100);
-            ClsLogicContorl_Ghub.KeyUp(ClsLogicContorl_Ghub.ToGhubKey(Key.Enter));
+            ClsSendInput.KeyUp(Key.Enter);
         }
-
         /// <summary>
         /// 在游戏中定位并点击“选项”按钮（高层操作）。
         /// </summary>
@@ -1708,7 +1707,7 @@ namespace FH_WPF
                 // 步骤4: 按 3 次 PageDown，然后按 Enter/Enter/BackSpace/UP/Enter
                 CheckCancel("步骤9");
                 //移走鼠标
-                ClsLogicContorl_Ghub.Move(-4096, -4096);
+                ClsSendInput.Move(-4096, -4096);
                 ClsLogger.LogScript("步骤9: 按 3 次 PageDown");
                 for (int i = 0; i < 3; i++)
                 {
@@ -1726,7 +1725,7 @@ namespace FH_WPF
                 ClsLogger.LogScript($"步骤11: 输入蓝图代码 (长度: {blueprintCode?.Length ?? 0})");
                 if (!string.IsNullOrEmpty(blueprintCode))
                 {
-                    ClsLogicContorl_Ghub.InputText(blueprintCode);
+                    ClsSendInput.InputText(blueprintCode);
                     Thread.Sleep(1000);
                 }
                 // 步骤6: 按 Enter/Down/Enter，等待 5 秒
@@ -2043,7 +2042,7 @@ namespace FH_WPF
                     // 步骤34: 按下 W，并循环检测重新开始按钮
                     ClsLogger.LogScript("步骤34: 按下 W");
                     Thread.Sleep(1000);
-                    ClsLogicContorl_Ghub.KeyDown(ClsLogicContorl_Ghub.ToGhubKey(Key.W));
+                    ClsSendInput.KeyDown(Key.W);
 
                     bool restartButtonDetected = false;
                     Stopwatch detectStopwatch = Stopwatch.StartNew();
@@ -2067,7 +2066,7 @@ namespace FH_WPF
 
                     // 弹起 W
                     ClsLogger.LogScript("步骤37: 弹起 W");
-                    ClsLogicContorl_Ghub.KeyUp(ClsLogicContorl_Ghub.ToGhubKey(Key.W));
+                    ClsSendInput.KeyUp(Key.W);
                     Thread.Sleep(200);
 
                     if (!restartButtonDetected)
@@ -2414,8 +2413,8 @@ namespace FH_WPF
                     }
                 }
 
-                ClsLogicContorl_Ghub.Move(-4096, -4096);
-                ClsLogicContorl_Ghub.Move(clickX, clickY, true);
+                ClsSendInput.Move(-4096, -4096);
+                ClsSendInput.Move(clickX, clickY, true);
                 Thread.Sleep(100);
                 // 使用统一的点击与等待封装，便于日志与行为一致
                 ClickMouseAndWait(1, 500, logTag);

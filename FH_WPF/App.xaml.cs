@@ -51,16 +51,6 @@ namespace FH_WPF
                 return principal.IsInRole(WindowsBuiltInRole.Administrator);
             }
         }
-
-        protected override void OnExit(ExitEventArgs e)
-        {
-            // 1. 先触发你自己的静态资源清理
-            ClsLogicContorl_Ghub.DeviceClose();
-
-            // 2. 不要忘了调用基类方法
-            base.OnExit(e);
-        }
-
     }
 
 }

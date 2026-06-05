@@ -1330,6 +1330,11 @@ namespace FH_WPF
         private void Button_Click_1(object sender, RoutedEventArgs e)
         {
             AppendLog("[信息] KeyBoard 按钮点击");
+            AppendLog("[信息] 将在3秒后按下ABC");
+            Thread.Sleep(3000);
+            ClsGameControl.ClickKeyAndWait(Key.A, 1000, "Test");
+            ClsGameControl.ClickKeyAndWait(Key.B, 1000, "Test");
+            ClsGameControl.ClickKeyAndWait(Key.C, 1000, "Test");
         }
 
         private void btnOCRTest_Click(object sender, RoutedEventArgs e)
